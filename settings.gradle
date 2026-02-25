@@ -1,0 +1,43 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+
+        maven { url 'https://maven.aliyun.com/repository/public' }
+
+        google()
+
+        mavenCentral()
+
+        // 高德仓库
+//        maven { url 'https://repo.amap.com/repository/maven-public/' }
+
+        // 天地图（如果用）
+        maven { url 'https://jitpack.io' }
+
+        // Mapbox（必须）
+        maven {
+            url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
+            credentials {
+                username = "mapbox"
+                password = providers.gradleProperty("MAPBOX_DOWNLOADS_TOKEN").get()
+            }
+        }
+        maven { url 'https://repo.amap.com/repository/maven' }
+    }
+}
+
+
+rootProject.name = "SurveyLand"
+include ':app'
+include ':map-core'
+include ':map-amap'
+include ':map-mapbox'
+include ':map-tianditu'

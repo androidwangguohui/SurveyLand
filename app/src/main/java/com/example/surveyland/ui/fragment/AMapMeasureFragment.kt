@@ -1,0 +1,607 @@
+package com.example.surveyland.ui.fragment
+
+
+import android.Manifest
+import android.app.AlertDialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.os.Bundle
+import android.os.Looper
+import android.util.Log
+import android.view.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
+import com.example.map_amap.util.LocationPermissionViewModel
+import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.example.surveyland.dao.AppDatabase
+import com.example.surveyland.databinding.AmpMeasureFragmentBinding
+import com.example.surveyland.entity.LandEntity
+import com.example.surveyland.entity.PositionEvent
+import com.example.surveyland.ui.activity.MeasureActivity
+import com.example.surveyland.ui.activity.MeasureDistanceActivity
+import com.example.surveyland.ui.activity.SearchActivity
+import com.example.surveyland.ui.activity.WalkAroundActivity
+import com.example.surveyland.ui.view.CustomPromptDialog
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.mapbox.geojson.Feature
+import com.mapbox.geojson.FeatureCollection
+import com.mapbox.geojson.LineString
+import com.mapbox.geojson.Point
+import com.mapbox.geojson.Polygon
+import com.mapbox.maps.CameraOptions
+import com.mapbox.maps.MapboxMap
+import com.mapbox.maps.Style
+import com.mapbox.maps.extension.style.layers.addLayer
+import com.mapbox.maps.extension.style.layers.generated.fillLayer
+import com.mapbox.maps.extension.style.layers.generated.lineLayer
+import com.mapbox.maps.extension.style.layers.getLayer
+import com.mapbox.maps.extension.style.sources.addSource
+import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
+import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
+import com.mapbox.maps.extension.style.sources.getSource
+import com.mapbox.maps.extension.style.sources.getSourceAs
+import com.mapbox.maps.plugin.annotation.annotations
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotation
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
+import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
+import com.mapbox.maps.plugin.attribution.attribution
+import com.mapbox.maps.plugin.gestures.gestures
+import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
+import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.logo.logo
+import com.mapbox.maps.plugin.scalebar.scalebar
+import com.mapbox.turf.TurfJoins
+import com.mapbox.turf.TurfMeasurement
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.greenrobot.eventbus.EventBus
+import org.greenrobot.eventbus.Subscribe
+import org.greenrobot.eventbus.ThreadMode
+
+class AMapMeasureFragment : BaseFragment() {
+
+    private val permissionVM: LocationPermissionViewModel by activityViewModels()
+    private lateinit var polygonManager: PolygonAnnotationManager
+    private lateinit var polylineManager: PolylineAnnotationManager
+    private lateinit var pointManager2: PointAnnotationManager
+    private val POLYGON_SOURCE = "polygon1-source"
+    private val POLYGON_LAYER = "polygon1-layer"
+    private val SOLID_SOURCE = "solid1-source"
+    private val SOLID_LAYER = "solid1-layer"
+    private lateinit var mapboxMap: MapboxMap
+    private lateinit var mAmpMeasureFragmentBinding: AmpMeasureFragmentBinding
+    private var param1: String? = null
+
+
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        mAmpMeasureFragmentBinding = AmpMeasureFragmentBinding.inflate(inflater,container,false)
+        polygonManager = mAmpMeasureFragmentBinding.mapView.annotations.createPolygonAnnotationManager()
+        polylineManager = mAmpMeasureFragmentBinding.mapView.annotations.createPolylineAnnotationManager()
+        pointManager2 = mAmpMeasureFragmentBinding.mapView.annotations.createPointAnnotationManager()
+        mapboxMap = mAmpMeasureFragmentBinding.mapView.getMapboxMap()
+
+        return mAmpMeasureFragmentBinding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        arguments?.let {
+            param1 = it.getString(ARG_PARAM1)
+        }
+        EventBus.getDefault().register(this)
+        permissionVM.permissionGranted.observe(viewLifecycleOwner) {
+            if (it == true) {
+                initMap(0)
+            }
+        }
+
+        mAmpMeasureFragmentBinding.tvGo.setOnClickListener {
+            requestPermission()
+        }
+        mAmpMeasureFragmentBinding.location.setOnClickListener {
+            loadLocation()
+        }
+        mAmpMeasureFragmentBinding.search.setOnClickListener {
+            startActivity(SearchActivity::class.java)
+        }
+        mAmpMeasureFragmentBinding.tvMeasure.setOnClickListener {
+            val cameraState = mapboxMap.cameraState
+            val centerPoint = cameraState.center
+
+            val latitude = centerPoint.latitude()
+            val longitude = centerPoint.longitude()
+            startActivity(MeasureDistanceActivity::class.java,latitude,longitude)
+        }
+    }
+    private val locationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) startPlotLand(true,1)
+        }
+    private fun requestPermission() {
+        if (ContextCompat.checkSelfPermission(
+                requireActivity(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            startPlotLand(true,1)
+        } else {
+            locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onPositionEvent(event: PositionEvent) {
+        displayMap(event.longitude, event.latitude)
+    }
+    private fun initMap(type: Int) {
+
+        mapboxMap.loadStyleJson(getTdtStyleJson()) { style ->
+
+            //去掉logo
+            mAmpMeasureFragmentBinding.mapView.logo.updateSettings {
+                enabled = false
+            }
+            //去掉 Attribution
+            mAmpMeasureFragmentBinding.mapView.attribution.updateSettings {
+                enabled = false
+            }
+            //去掉比例尺
+            mAmpMeasureFragmentBinding.mapView.scalebar.updateSettings {
+                enabled = false
+            }
+            initLayers(style)
+            //显示当前位置
+            if(type == 0)loadLocation()
+            //点击画地块
+            loadDangqian()
+            //点击地块
+            bindLandClickListener()
+        }
+    }
+
+    private fun bindLandClickListener() {
+        //点击
+        mAmpMeasureFragmentBinding.mapView.gestures.addOnMapClickListener { point ->
+            // 遍历所有地块 Feature
+
+            // 当前点击点
+            val clickLng = point.longitude()
+            val clickLat = point.latitude()
+            val clickPt = Point.fromLngLat(clickLng, clickLat)
+            lifecycleScope.launch {
+                // 从数据库读取所有地块
+                val dao = AppDatabase.getDatabase(requireContext()).landDao()
+                val allLands = dao.getAll()
+                var clickedLandId: Long? = null
+
+                for (land in allLands) {
+                    val points: List<Point> = Gson().fromJson(
+                        land.pointsJson,
+                        object : TypeToken<List<Point>>() {}.type
+                    )
+
+                    val polygon = Polygon.fromLngLats(listOf(points))
+
+                    if (TurfJoins.inside(clickPt, polygon)) {
+                        clickedLandId = land.id
+                        break
+                    }
+                }
+                // 如果点击到了某个地块
+                clickedLandId?.let { id ->
+                    Log.e("点击地块ID", "$id")
+                    handleLandClick(id)
+                }
+            }
+            true
+        }
+    }
+
+    private fun loadLocation() {
+        //通过mapbox获取当前位置
+//        val locationPlugin = mAmpMeasureFragmentBinding.mapView.location
+//        locationPlugin.updateSettings {
+//            enabled = true
+//            pulsingEnabled = true
+//        }
+//        locationPlugin.addOnIndicatorPositionChangedListener(
+//            object : OnIndicatorPositionChangedListener {
+//                override fun onIndicatorPositionChanged(point: Point) {
+//                    val lat= point.latitude()
+//                    val lng = point.longitude()
+//                    mapboxMap.setCamera(
+//                        CameraOptions.Builder()
+//                            .center(Point.fromLngLat(lng, lat))
+//                            .zoom(15.0)
+//                            .build()
+//                    )
+//
+//                    locationPlugin.removeOnIndicatorPositionChangedListener(this)
+//                }
+//            }
+//        )
+
+        //通过高德获取当前位置
+        val locationHelper = com.example.surveyland.util.SimpleLocationHelper(requireActivity())
+        locationHelper.getLocation { lat, lon ->
+            Log.d("Location", "经度 = $lon, 纬度 = $lat")
+            displayMap(lon, lat)
+        }
+    }
+
+    private fun displayMap(lon: Double, lat: Double) {
+        mapboxMap.setCamera(
+            CameraOptions.Builder()
+                .center(Point.fromLngLat(lon, lat))
+                .zoom(15.0)
+                .build()
+        )
+    }
+
+    private fun loadDangqian() {
+        mAmpMeasureFragmentBinding.tvArea.setOnClickListener {
+            startPlotLand(false,1)
+        }
+    }
+    fun startPlotLand(flag: Boolean, type: Int, id: Long?=0) {
+        val cameraState = mapboxMap.cameraState
+        val centerPoint = cameraState.center
+
+        val latitude = centerPoint.latitude()
+        val longitude = centerPoint.longitude()
+        startActivity(if(flag) WalkAroundActivity::class.java else MeasureActivity::class.java, "latitude", "longitude", latitude, longitude,type,id)
+    }
+    private fun loadAllLandFromDatabase(type: Int) {
+        // 1️⃣ 删除所有地块信息
+        polygonManager.deleteAll()
+        polylineManager.deleteAll()
+        pointManager2.deleteAll()
+        if (textAnnotations.isNotEmpty()) {
+            // 删除文字
+            textAnnotations.forEach { pointManager2.delete(it) }
+            // 清空集合
+            textAnnotations.clear()
+        }
+        lifecycleScope.launch {
+
+            val landList = AppDatabase.getDatabase(requireContext())
+                .landDao()
+                .getAll()
+
+            if(landList.isNotEmpty()){
+                withContext(Dispatchers.Main) {
+                    showLandOnMap(landList)
+                }
+            }else{
+                initMap(type)
+            }
+        }
+    }
+    private val gson = Gson()
+
+    private val allPolygons = mutableListOf<List<Point>>() // 存储所有地块坐标
+    private fun showLandOnMap(list: List<LandEntity>) {
+
+        // 清空上次记录
+        clear()
+        list.forEach { land ->
+            val points: List<Point> = gson.fromJson(
+                land.pointsJson,
+                object : TypeToken<List<Point>>() {}.type
+            )
+            allPolygons.add(points)
+            drawPolygon(points, land.villageName, land.area,land.id)
+        }
+    }
+
+    private fun clear() {
+        allPolygons.clear()
+        pointManager2.deleteAll()
+        if (textAnnotations.isNotEmpty()) {
+            // 删除文字
+            textAnnotations.forEach { pointManager2.delete(it) }
+            // 清空集合
+            textAnnotations.clear()
+        }
+    }
+
+    // 1️⃣ 创建 Bitmap 绘制文字
+    val paint = Paint().apply {
+        color = Color.WHITE
+        textSize = 50f
+        isAntiAlias = true
+        textAlign = Paint.Align.LEFT
+    }
+    private fun drawPolygon(
+        points: List<Point>,
+        name: String,
+        area: Double,
+        id: Long,
+    ) {
+        mapboxMap.getStyle { style ->
+
+            // 1️⃣ 面
+            val polygonFeatures = allPolygons.map { points ->
+                val closedPoints = points + points.first() // 首尾闭合
+                Feature.fromGeometry(Polygon.fromLngLats(listOf(closedPoints))).apply {
+                        addNumberProperty("landId", id)
+                        addStringProperty("name", name)
+                        addNumberProperty("area", area)
+                }
+            }
+            style.getSourceAs<GeoJsonSource>(POLYGON_SOURCE)
+                ?.featureCollection(FeatureCollection.fromFeatures(polygonFeatures))
+
+            // 2️⃣ 实线
+            val lineFeatures = allPolygons.map { points ->
+                val closedPoints = points + points.first()
+                Feature.fromGeometry(LineString.fromLngLats(closedPoints))
+            }
+            style.getSourceAs<GeoJsonSource>(SOLID_SOURCE)
+                ?.featureCollection(FeatureCollection.fromFeatures(lineFeatures))
+            // 显示文字在面中心
+            showAreaText(style, points, paint, mAmpMeasureFragmentBinding.mapView.annotations.createPointAnnotationManager(), area,name)
+        }
+    }
+
+    private fun handleLandClick(landId: Long) {
+
+        lifecycleScope.launch {
+
+            val land = AppDatabase
+                .getDatabase(requireActivity())
+                .landDao()
+                .getById(landId)
+
+            land?.let {
+                showLandDialog(it)
+            }
+        }
+    }
+    // 存储所有文字对象
+    private val textAnnotations = mutableListOf<PointAnnotation>()
+    fun showAreaText(style: Style, points: List<Point>, paint: Paint, pointManager: PointAnnotationManager, area: Double, name: String) {
+
+        if (points.size < 3) return  // 至少三点才形成面
+
+        // 1️⃣ 闭合点列表
+        val closedPoints = if (points.first() == points.last()) points else points + points.first()
+
+        // 2️⃣ 生成 Polygon
+        val polygon = Polygon.fromLngLats(listOf(closedPoints))
+        val feature = Feature.fromGeometry(polygon)
+
+        // 3️⃣ Turf.center 获取面中心
+        val centerFeature = TurfMeasurement.center(feature)
+        val centerPoint = centerFeature.geometry() as Point
+
+        // 4️⃣ 生成文字 Bitmap
+        //%.2f → 浮点数
+        //%s → 字符串
+        //%d → 整数
+//        val text = "%.2f㎡\n%.2f亩".format(area, area / 666.67)
+        val text = "%s\n%.2f亩".format(name,area / 666.67)
+
+        val width = (paint.measureText(text) + 40).toInt()   // 文字宽 + padding
+        val height = 120
+
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // 居中绘制文字
+        paint.textAlign = Paint.Align.CENTER
+        canvas.drawText(text, width / 2f, height / 2f, paint)
+
+        // 5️⃣ 添加文字 Annotation
+        val pointAnnotationOptions = PointAnnotationOptions()
+            .withPoint(centerPoint)
+            .withIconImage(bitmap)
+
+
+        // 创建文字对象
+        val pointAnnotation = pointManager2.create(pointAnnotationOptions)
+
+        // 保存到全局集合
+        textAnnotations.add(pointAnnotation)
+
+
+//        // 先删除之前的文字（防止重复叠加）
+//        areaAnnotationId.let { id ->
+//            val annotation = pointManager2.annotations.find { it.id == id }
+//            if (annotation != null) {
+//                pointManager2.delete(annotation)
+//            }
+//        }
+//
+//        // 创建新的文字 Annotation
+//        val annotation = pointManager2.create(pointAnnotationOptions)
+//
+//        // 保存 id 方便删除
+//        areaAnnotationId = annotation.id
+    }
+
+
+    private fun deleteLand(landId: Long) {
+        CustomPromptDialog.Builder(requireActivity())
+            .setTitle("提示")
+            .setMessage("是否删除该地块？")
+            .setCancel("取消")
+            .setConfirm("确定") {
+
+                lifecycleScope.launch {
+                    val dao = AppDatabase.getDatabase(requireContext()).landDao()
+                    val landList = dao.getAll()
+                    val targetLand = landList.firstOrNull { it.id == landId }
+                    targetLand?.let { dao.delete(it) }
+                    //删除后重新刷新地块
+                    loadAllLandFromDatabase(0)
+                }
+            }
+            .show()
+
+    }
+
+    override fun onStart() {
+        super.onStart()
+        mAmpMeasureFragmentBinding.mapView.onStart()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mAmpMeasureFragmentBinding.mapView.onStop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mAmpMeasureFragmentBinding.mapView.onDestroy()
+        EventBus.getDefault().unregister(this)
+
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        mAmpMeasureFragmentBinding.mapView.onLowMemory()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadAllLandFromDatabase(1)
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden) {
+            mAmpMeasureFragmentBinding.mapView.onStop()
+        } else {
+            mAmpMeasureFragmentBinding.mapView.onStart()
+        }
+    }
+
+    override fun setUserVisibleHint(isVisibleToUser: Boolean) {
+        super.setUserVisibleHint(isVisibleToUser)
+        if (isVisibleToUser) {
+            mAmpMeasureFragmentBinding.mapView.onStart()
+        } else {
+            mAmpMeasureFragmentBinding.mapView.onStop()
+        }
+    }
+    private fun initLayers(style: Style) {
+        // 实线
+        if (style.getSource(SOLID_SOURCE) == null) {
+            style.addSource(geoJsonSource(SOLID_SOURCE) { geometry(LineString.fromLngLats(emptyList())) })
+        }
+        if (style.getLayer(SOLID_LAYER) == null) {
+            style.addLayer(lineLayer(SOLID_LAYER, SOLID_SOURCE) {
+                lineColor("#ffffff".toColorInt())
+                lineWidth(3.0)
+            })
+        }
+        // 面
+        if (style.getSource(POLYGON_SOURCE) == null) {
+            style.addSource(geoJsonSource(POLYGON_SOURCE) { geometry(Polygon.fromLngLats(listOf(emptyList()))) })
+        }
+        if (style.getLayer(POLYGON_LAYER) == null) {
+            style.addLayer(fillLayer(POLYGON_LAYER, POLYGON_SOURCE) { fillColor("#388F8E90".toColorInt()) })
+        }
+    }
+
+
+    private fun showLandDialog(land: LandEntity) {
+
+        AlertDialog.Builder(requireActivity())
+            .setTitle("地块操作")
+            .setItems(arrayOf("编辑", "删除")) { _, which ->
+
+                when (which) {
+                    0 -> editLand(land)
+                    1 -> deleteLand(land.id)
+                }
+            }
+            .show()
+    }
+
+    private fun editLand(land: LandEntity) {
+        startPlotLand(false,2,land.id)
+    }
+    private fun getTdtStyleJson() : String{
+
+        val key = "18200bf5ba2f674c772624185d27c1c9"
+
+        return """
+    {
+      "version": 8,
+      "sources": {
+        "tdt-img": {
+          "type": "raster",
+          "tiles": [
+            "https://t0.tianditu.gov.cn/img_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=img&style=default&tilematrixset=w&format=tiles&tilematrix={z}&tilerow={y}&tilecol={x}&tk=$key"
+          ],
+          "tileSize": 256
+        },
+        "tdt-cia": {
+          "type": "raster",
+          "tiles": [
+            "https://t0.tianditu.gov.cn/cia_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=cia&style=default&tilematrixset=w&format=tiles&tilematrix={z}&tilerow={y}&tilecol={x}&tk=$key"
+          ],
+          "tileSize": 256
+        }
+      },
+      "layers": [
+        {
+          "id": "background",
+          "type": "background",
+          "paint": {
+            "background-color": "#000000"
+          }
+        },
+        {
+          "id": "tdt-img",
+          "type": "raster",
+          "source": "tdt-img"
+        },
+        {
+          "id": "tdt-cia",
+          "type": "raster",
+          "source": "tdt-cia"
+        }
+      ]
+    }
+    """.trimIndent()
+
+    }
+    companion object {
+        private const val ARG_PARAM1 = "param1"
+
+        @JvmStatic
+        fun newInstance(param1: String) =
+            AMapMeasureFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_PARAM1, param1)
+                }
+            }
+    }
+}
+
+
+
+
+
+

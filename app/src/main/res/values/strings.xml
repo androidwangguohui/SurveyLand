@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SurveyLand</string>
+    <string name="mapbox_access_token">pk.eyJ1Ijoiaml1dGVuZyIsImEiOiJjbWt0ZDJ0dGExbW9kM2xxbmx2eTJ1dzBnIn0.cKCFnOqjUPaOmZKu1F-h0A</string>
+</resources>

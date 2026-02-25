@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SurveyLand" >
+
+        <meta-data
+            android:name="com.mapbox.token"
+            android:value="pk.eyJ1Ijoiaml1dGVuZyIsImEiOiJjbWt0ZDJ0dGExbW9kM2xxbmx2eTJ1dzBnIn0.cKCFnOqjUPaOmZKu1F-h0A"/>
+</application>
+</manifest>

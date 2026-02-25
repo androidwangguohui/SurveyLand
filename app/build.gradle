@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'kotlin-kapt' // <-- 这一行必须加
+}
+
+android {
+    namespace 'com.example.surveyland'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.surveyland"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+
+}
+
+dependencies {
+    implementation libs.androidx.core.ktx
+    implementation libs.androidx.appcompat
+    implementation libs.material
+    implementation libs.play.services.location
+    testImplementation libs.junit
+    androidTestImplementation libs.androidx.junit
+    androidTestImplementation libs.androidx.espresso.core
+    implementation "androidx.activity:activity-ktx:1.9.0"
+    implementation project(":map-core")
+    implementation project(":map-amap")
+    implementation project(":map-mapbox")
+    implementation project(":map-tianditu")
+
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.8.4"
+    implementation "androidx.fragment:fragment-ktx:1.7.1"
+
+    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation "com.squareup.retrofit2:converter-gson:2.9.0"
+    implementation "com.squareup.okhttp3:logging-interceptor:4.9.3"
+    // Room 核心库
+    implementation "androidx.room:room-runtime:2.6.1"
+    // Kotlin 协程支持（如果你用 suspend / lifecycleScope）
+    implementation "androidx.room:room-ktx:2.6.1"
+    // 编译时注解处理器
+    kapt "androidx.room:room-compiler:2.6.1"
+
+    //高德
+    implementation 'com.amap.api:3dmap:9.8.3'
+    implementation 'com.amap.api:search:latest.integration'    // 搜索 POI SDK
+    //mapBox
+    implementation "com.mapbox.maps:android:10.16.1"
+    // ✅ Turf 所在位置（关键）
+    implementation "com.mapbox.mapboxsdk:mapbox-sdk-turf:6.8.0"
+    //定位
+    implementation "com.google.android.gms:play-services-location:21.0.1"
+
+    implementation 'org.greenrobot:eventbus:3.3.1'
+}

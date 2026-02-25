@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.mapbox.maps.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+    <com.mapbox.maps.MapView
+        android:id="@+id/mapViewZoom"
+        android:layout_width="match_parent"
+        android:layout_gravity="top"
+        android:layout_height="200dp" />
+
+    <com.example.surveyland.ui.view.MagnifierView
+        android:id="@+id/magnifierView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_gravity="top"
+        android:background="@color/white"
+        android:visibility="gone"
+        android:elevation="10dp" />
+    <ImageView
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/dian"/>
+    <LinearLayout
+        android:layout_marginBottom="100dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <Button
+            android:id="@+id/btnUp"
+            android:text="↑"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <Button
+            android:id="@+id/btnDown"
+            android:text="↓"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <Button
+            android:id="@+id/btnLeft"
+            android:text="←"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <Button
+            android:id="@+id/btnRight"
+            android:text="→"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <Button
+            android:id="@+id/btnZoomIn"
+            android:text="＋"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+        <Button
+            android:id="@+id/btnZoomOut"
+            android:text="—"
+            android:layout_width="50dp"
+            android:layout_height="50dp"/>
+
+    </LinearLayout>
+   <LinearLayout
+       android:layout_width="match_parent"
+       android:layout_gravity="bottom"
+       android:layout_height="wrap_content">
+       <Button
+           android:id="@+id/btnAddPoint"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:text="添加点位"
+           />
+       <Button
+           android:id="@+id/btnDelete"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:text="清除"
+           />
+       <Button
+           android:id="@+id/btnUndo"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:text="撤回"
+
+           />
+       <Button
+           android:visibility="gone"
+           android:id="@+id/btnFinish"
+           android:layout_width="wrap_content"
+           android:layout_height="wrap_content"
+           android:text="完成"/>
+   </LinearLayout>
+
+</FrameLayout>
