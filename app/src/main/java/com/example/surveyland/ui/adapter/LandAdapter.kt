@@ -8,13 +8,17 @@ import android.icu.text.DecimalFormat
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.amap.api.services.core.PoiItem
+import com.example.surveyland.dao.AppDatabase
 import com.example.surveyland.databinding.ItemLandBinding
 import com.example.surveyland.entity.LandEntity
 import com.example.surveyland.ui.view.AppToast
+import com.example.surveyland.ui.view.CustomPromptDialog
+import kotlinx.coroutines.launch
 
 class LandAdapter(
     private val context: Context,
@@ -40,8 +44,8 @@ class LandAdapter(
         holder.binding.tvName.text = item.villageName
         holder.binding.tvType.text = item.type
 //        holder.binding.tvArea.text = "${item.area} ㎡"
-        holder.binding.tvArea.text = "%.2f亩".format(item.area / 666.67)
-        holder.binding.tvDistance.text = formatted+"米"
+        holder.binding.tvArea.text = "面积："+"%.2f亩".format(item.area / 666.67)
+        holder.binding.tvDistance.text = "周长："+formatted+"米"
         holder.binding.ivThumbnail.setImageBitmap(BitmapFactory.decodeFile(item.thumbnailPath))
 
         if (item.thumbnailPath != null) {
@@ -60,15 +64,24 @@ class LandAdapter(
     override fun getItemCount(): Int = list.size
 
     fun navigateToLand(lat: Double, lng: Double) {
-        // 构建高德导航 URI
-        val uriString = "amapuri://route/plan/?dlat=$lat&dlon=$lng&dname=目的地&dev=0&t=0"
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
-        intent.setPackage("com.autonavi.minimap") // 指定高德 App
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            AppToast.show(context,"请先安装高德地图")
-        }
+
+        CustomPromptDialog.Builder(context)
+            .setTitle("提示")
+            .setMessage("是否跳转高德进行导航？")
+            .setCancel("取消")
+            .setConfirm("确定") {
+                // 构建高德导航 URI
+                val uriString = "amapuri://route/plan/?dlat=$lat&dlon=$lng&dname=目的地&dev=0&t=0"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString))
+                intent.setPackage("com.autonavi.minimap") // 指定高德 App
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    AppToast.show(context,"请先安装高德地图")
+                }
+            }
+            .show()
+
     }
     @SuppressLint("NotifyDataSetChanged")
     fun updateList(newItems: List<LandEntity>) {

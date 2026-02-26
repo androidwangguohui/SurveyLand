@@ -32,6 +32,7 @@ import com.example.surveyland.util.StringUtils
 import com.example.surveyland.util.TianDiTuRepository
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.style.layers.getLayer
 import com.mapbox.maps.extension.style.sources.getSource
 import com.mapbox.maps.extension.style.sources.getSourceAs
@@ -60,6 +61,7 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.max
 
 class MeasureActivity : BaseActivity() {
 
@@ -543,8 +545,12 @@ class MeasureActivity : BaseActivity() {
                     //获取周长
                     val distance = TurfMeasurement.length(LineString.fromLngLats(closedPoints),"meters")
                     //生成缩略图
-                    val bit = generateSnapshot(mActivityMeasureBinding.mapView)
-
+//                    val bit = generateSnapshot()
+                    val bit = MapUtils.generateLandThumbnail(
+                        mapView = mActivityMeasureBinding.mapView,
+                        mapboxMap = mapboxMap,
+                        points = points
+                    )
                     val file = saveBitmap(bit)
 
                     // 创建 Polygon
@@ -575,16 +581,36 @@ class MeasureActivity : BaseActivity() {
     }
 
 
-    private suspend fun generateSnapshot(mapView: MapView): Bitmap = withContext(Dispatchers.Main) {
-        kotlinx.coroutines.suspendCancellableCoroutine { cont ->
-            mapView.snapshot { bitmap ->
-                if (bitmap != null) {
-                    cont.resume(bitmap)  // ✅ 这里是非空 Bitmap
-                } else {
-                    cont.resumeWithException(Exception("Map snapshot failed"))
+    private suspend fun generateSnapshot( labelPosition: Point? = null): Bitmap = withContext(Dispatchers.Main){
+
+        // 1️⃣ 计算中心点
+        val centerPoint = labelPosition ?: run {
+            val polygon = Polygon.fromLngLats(listOf(points + points.first()))
+            val feature = Feature.fromGeometry(polygon)
+            val centerFeature = TurfMeasurement.center(feature)
+            centerFeature.geometry() as Point
+        }
+
+        // 2️⃣ 根据面积计算 zoom
+        val zoom = MapUtils.calculateZoomByArea(points)
+
+        var cameraOptions = CameraOptions.Builder()
+            .center(centerPoint)
+            .zoom(zoom)
+            .build()
+
+        mapboxMap.setCamera(cameraOptions)
+
+            // 4️⃣ 截图
+            kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+                mActivityMeasureBinding.mapView.snapshot { bitmap ->
+                    if (bitmap != null) {
+                        cont.resume(bitmap)
+                    } else {
+                        cont.resumeWithException(Exception("Map snapshot failed"))
+                    }
                 }
             }
-        }
     }
 
     private suspend fun saveBitmap(bitmap: Bitmap): File = withContext(Dispatchers.IO) {

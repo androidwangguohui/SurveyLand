@@ -15,6 +15,8 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
@@ -62,6 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -77,6 +80,7 @@ class WalkAroundActivity: BaseActivity() {
     private var lineAnnotationManager: PolylineAnnotationManager? = null
     private var startPointManager: PointAnnotationManager? = null
     private var closeLineManager: PolylineAnnotationManager? = null
+    private lateinit var tts: TextToSpeech
 
     private var startPoint: Point? = null
 
@@ -90,6 +94,25 @@ class WalkAroundActivity: BaseActivity() {
 
         initMap()
         initClick()
+        initVoice()
+    }
+
+    private fun initVoice() {
+        tts = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts.setLanguage(Locale.CHINA) // 中文
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Log.e("TTS", "语言不支持")
+                }
+            } else {
+                Log.e("TTS", "TTS 初始化失败")
+            }
+        }
+    }
+    private fun speak(text: String) {
+        if (::tts.isInitialized) {
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "start_measure")
+        }
     }
     private fun initClick() {
         mActivityWalkAroundBinding.btnStart.setOnClickListener {
@@ -113,6 +136,7 @@ class WalkAroundActivity: BaseActivity() {
                      .setTitle("提示")
                      .setMessage("为了测量的准确性请保持当前屏幕常亮，由于不同地区信号强弱的问题会有≧1亩的误差，敬请谅解")
                      .setConfirm("知道了") {
+                         speak("开始测量")
                          startMeasure()
                          mActivityWalkAroundBinding.btnStart.text = "结束"
                          isStart = !isStart
@@ -157,6 +181,8 @@ class WalkAroundActivity: BaseActivity() {
         loadDangqian()
     }
 
+    // 缓冲点
+    val tempBuffer = mutableListOf<Point>()
     private fun enableLocationComponent() {
         val locationComponentPlugin = mActivityWalkAroundBinding.mapView.location
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -179,6 +205,21 @@ class WalkAroundActivity: BaseActivity() {
 //                startPoint = point
 //                addStartMarker(point)
 //            }
+
+            // 每 2 秒记录一次，或者每隔一定距离记录
+//            if (tempBuffer.size < 2) return@addOnIndicatorPositionChangedListener
+            // 添加轨迹点
+            val lng = point.longitude()
+            val lat = point.latitude()
+            tracker.addPoint(lng, lat)
+            drawTrack()
+            updateTrack()
+            updateArea()
+            updateTrackLine()
+
+            mActivityWalkAroundBinding.tvDistance.text = "距离: %.2f m".format(tracker.getPerimeter())
+
+            tempBuffer.clear()
         }
     }
 
@@ -280,18 +321,18 @@ class WalkAroundActivity: BaseActivity() {
 
         override fun onLocationChanged(location: Location) {
 
-            if (location.accuracy > 10) return
-
-            // 添加轨迹点
-            val lng = location.longitude
-            val lat = location.latitude
-            tracker.addPoint(lng, lat)
-            drawTrack()
-            updateTrack()
-            updateArea()
-            updateTrackLine()
-
-            mActivityWalkAroundBinding.tvDistance.text = "距离: %.2f m".format(tracker.getPerimeter())
+//            if (location.accuracy > 10) return
+//
+//            // 添加轨迹点
+//            val lng = location.longitude
+//            val lat = location.latitude
+//            tracker.addPoint(lng, lat)
+//            drawTrack()
+//            updateTrack()
+//            updateArea()
+//            updateTrackLine()
+//
+//            mActivityWalkAroundBinding.tvDistance.text = "距离: %.2f m".format(tracker.getPerimeter())
         }
     }
 
@@ -412,7 +453,7 @@ class WalkAroundActivity: BaseActivity() {
         style.addLayer(
             lineLayer("track-layer", "track-source") {
                 lineColor(Color.YELLOW)
-                lineWidth(4.0)
+                lineWidth(3.0)
                 lineCap(LineCap.ROUND)
                 lineJoin(LineJoin.ROUND)
             }
@@ -427,8 +468,8 @@ class WalkAroundActivity: BaseActivity() {
         style.addLayer(
             lineLayer("dash-layer", "dash-source") {
                 lineColor(Color.YELLOW)
-                lineWidth(4.0)
-                lineDasharray(listOf(4.0, 4.0)) // 👈 真正虚线
+                lineWidth(3.0)
+                lineDasharray(listOf(4.0, 4.0)) //虚线
             }
         )
     }
@@ -455,5 +496,9 @@ class WalkAroundActivity: BaseActivity() {
         super.onDestroy()
         stopLocation()
         mActivityWalkAroundBinding.mapView.onDestroy()
+        if (::tts.isInitialized) {
+            tts.stop()
+            tts.shutdown()
+        }
     }
 }

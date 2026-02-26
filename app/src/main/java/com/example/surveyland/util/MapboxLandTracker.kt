@@ -28,9 +28,9 @@ class MapboxLandTracker private constructor() {
 
     private val MIN_DISTANCE = 2.0          // 抖动过滤
     private val MAX_SPEED = 5.0             // m/s
-    private val MIN_CLOSURE_DISTANCE = 2.0  //收尾闭合最小距离（2米）
+    private val MIN_CLOSURE_DISTANCE = 1.0  //收尾闭合最小距离（2米）
     private val AUTO_CLOSE_DISTANCE = 2.0   // 智能闭合阈值
-    private val MIN_AREA = 2.0              //最小圈地面积（2平米）
+    private val MIN_AREA = 3.0              //最小圈地面积（2平米）
 
     private var kalmanX: Double? = null
     private var kalmanY: Double? = null
@@ -152,7 +152,8 @@ class MapboxLandTracker private constructor() {
         if (closedPoints.size < 4) return false
         if (getLandArea() < MIN_AREA) return false
 //        if (isSelfIntersecting(closedPoints)) return false
-        if (isSelfIntersecting(closedPoints)) return false
+//        if (isPolygonSelfIntersecting(closedPoints)) return false
+        if (isSelfIntersectingImproved(closedPoints)) return false
         return true
     }
 
@@ -208,6 +209,35 @@ class MapboxLandTracker private constructor() {
         val d4 = direction(q1, q2, p2)
 
         return (d1 * d2 < 0) && (d3 * d4 < 0)
+    }
+    private fun isSelfIntersectingImproved(points: List<Point>, thresholdMeters: Double = 0.5): Boolean {
+        val closedPoints = if (points.first() == points.last()) points else points + points.first()
+
+        for (i in 0 until closedPoints.size - 1) {
+            val a1 = closedPoints[i]
+            val a2 = closedPoints[i + 1]
+            for (j in i + 1 until closedPoints.size - 1) {
+                val b1 = closedPoints[j]
+                val b2 = closedPoints[j + 1]
+
+                // 忽略相邻线段
+                if (i == j || i + 1 == j) continue
+
+                // 如果点非常近，认为线段重合，不算交叉
+                if (pointsAlmostEqual(a1, b1, thresholdMeters) ||
+                    pointsAlmostEqual(a1, b2, thresholdMeters) ||
+                    pointsAlmostEqual(a2, b1, thresholdMeters) ||
+                    pointsAlmostEqual(a2, b2, thresholdMeters)
+                ) continue
+
+                if (linesIntersect(a1, a2, b1, b2)) return true
+            }
+        }
+        return false
+    }
+    fun pointsAlmostEqual(p1: Point, p2: Point, thresholdMeters: Double = 1.0): Boolean {
+        val d = TurfMeasurement.distance(p1, p2)
+        return d < thresholdMeters
     }
 
     /** 自交检测 */
