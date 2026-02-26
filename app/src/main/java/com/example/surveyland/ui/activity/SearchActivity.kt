@@ -32,13 +32,10 @@ class SearchActivity : BaseActivity(), PoiSearch.OnPoiSearchListener {
             finish()
         }
         adapter = PoiAdapter(poiList) { poiItem ->
-            val ls = ArrayList<Double>()
-            ls.add(poiItem.latLonPoint.longitude)
-            ls.add(poiItem.latLonPoint.latitude)
+
             EventBus.getDefault().post(PositionEvent(poiItem.latLonPoint.longitude, poiItem.latLonPoint.latitude))
 
             finish()
-
 
         }
 

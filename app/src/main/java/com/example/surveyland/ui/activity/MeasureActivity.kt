@@ -227,7 +227,6 @@ class MeasureActivity : BaseActivity() {
                     lineWidth(4.0)
                 })
             }
-
             // 虚线
             if (style.getSource(ZOOM_DASH_SOURCE) == null) {
                 style.addSource(geoJsonSource(ZOOM_DASH_SOURCE) { geometry(LineString.fromLngLats(emptyList())) })
@@ -239,9 +238,7 @@ class MeasureActivity : BaseActivity() {
                     lineDasharray(listOf(4.0, 2.0))
                 })
             }
-
         }
-
         //去掉logo
         mActivityMeasureBinding.mapViewZoom.logo.updateSettings {
             enabled = false
@@ -256,7 +253,6 @@ class MeasureActivity : BaseActivity() {
         }
         mActivityMeasureBinding.mapViewZoom.visibility = View.VISIBLE
         mActivityMeasureBinding.mapViewZoom.visibility = View.GONE
-
     }
 
 
@@ -265,7 +261,6 @@ class MeasureActivity : BaseActivity() {
         mapboxMap = mActivityMeasureBinding.mapView.getMapboxMap()
 
         mapboxMap.loadStyleJson(getTdtStyleJson()) { style ->
-
             initLayers(style)
             //如果是点击编辑进入
             initEdit()
@@ -406,8 +401,9 @@ class MeasureActivity : BaseActivity() {
         points.add(center)
         pointAnnotations.add(annotation)
         pointToIndexMap[annotation] = points.size - 1 // 保存索引
-
+        //更新点之间的连接线
         updateLines()
+        mActivityMeasureBinding.tvDistance.text = "周长: %.2f m".format(MapUtils.getPerimeter(points))
     }
     private fun isDuplicatePoint(newPoint: Point): Boolean {
         val thresholdMeters = 1.0 // 认为 1 米以内的点算重复

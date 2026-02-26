@@ -13,7 +13,14 @@
         android:layout_width="match_parent"
         android:layout_gravity="top"
         android:layout_height="200dp" />
-
+    <TextView
+        android:layout_marginLeft="15dp"
+        android:textSize="16sp"
+        android:textColor="@color/white"
+        android:layout_marginTop="80dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tvDistance"/>
     <com.example.surveyland.ui.view.MagnifierView
         android:id="@+id/magnifierView"
         android:layout_width="match_parent"
@@ -24,9 +31,9 @@
         android:elevation="10dp" />
     <ImageView
         android:layout_gravity="center"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/dian"/>
+        android:layout_width="25dp"
+        android:layout_height="25dp"
+        android:src="@drawable/black_active"/>
     <LinearLayout
         android:layout_marginBottom="100dp"
         android:layout_width="wrap_content"

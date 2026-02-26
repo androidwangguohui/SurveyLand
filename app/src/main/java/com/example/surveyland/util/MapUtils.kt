@@ -8,10 +8,13 @@ import com.mapbox.maps.CoordinateBounds
 import com.mapbox.maps.MapSnapshotOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Size
+import com.mapbox.turf.TurfConstants
+import com.mapbox.turf.TurfMeasurement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.collections.mutableListOf
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -36,4 +39,17 @@ object  MapUtils {
         }
         file
     }
+
+    /** 周长（米） */
+    open fun getPerimeter(points:List<Point>): Double {
+        val closedPoints = getClosedPoints(points)
+        if (closedPoints.size < 2) return 0.0
+        var perimeter = 0.0
+        for (i in 0 until closedPoints.size - 1) {
+            perimeter += TurfMeasurement.distance(closedPoints[i], closedPoints[i + 1], TurfConstants.UNIT_METERS)
+        }
+        return perimeter
+    }
+    fun getClosedPoints(points:List<Point>): List<Point> =
+        points + points.first()
 }

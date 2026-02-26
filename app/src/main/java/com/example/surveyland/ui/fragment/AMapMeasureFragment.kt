@@ -66,6 +66,7 @@ import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.turf.TurfJoins
 import com.mapbox.turf.TurfMeasurement
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.EventBus
@@ -84,6 +85,9 @@ class AMapMeasureFragment : BaseFragment() {
     private val SOLID_LAYER = "solid1-layer"
     private lateinit var mapboxMap: MapboxMap
     private lateinit var mAmpMeasureFragmentBinding: AmpMeasureFragmentBinding
+
+    private var isSearch: Boolean = false
+
     private var param1: String? = null
 
 
@@ -118,6 +122,7 @@ class AMapMeasureFragment : BaseFragment() {
             requestPermission()
         }
         mAmpMeasureFragmentBinding.location.setOnClickListener {
+            isSearch = false
             loadLocation()
         }
         mAmpMeasureFragmentBinding.search.setOnClickListener {
@@ -149,7 +154,11 @@ class AMapMeasureFragment : BaseFragment() {
     }
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onPositionEvent(event: PositionEvent) {
-        displayMap(event.longitude, event.latitude)
+        isSearch = true
+        lifecycleScope.launch {
+            delay(200)   // 延迟200毫秒
+            displayMap(event.longitude, event.latitude)
+        }
     }
     private fun initMap(type: Int) {
 
@@ -216,6 +225,16 @@ class AMapMeasureFragment : BaseFragment() {
     }
 
     private fun loadLocation() {
+
+        if(!isSearch){
+            //通过高德获取当前位置
+            val locationHelper = com.example.surveyland.util.SimpleLocationHelper(requireActivity())
+            locationHelper.getLocation { lat, lon ->
+                Log.d("Location", "经度 = $lon, 纬度 = $lat")
+                displayMap(lon, lat)
+            }
+        }
+
         //通过mapbox获取当前位置
 //        val locationPlugin = mAmpMeasureFragmentBinding.mapView.location
 //        locationPlugin.updateSettings {
@@ -239,12 +258,8 @@ class AMapMeasureFragment : BaseFragment() {
 //            }
 //        )
 
-        //通过高德获取当前位置
-        val locationHelper = com.example.surveyland.util.SimpleLocationHelper(requireActivity())
-        locationHelper.getLocation { lat, lon ->
-            Log.d("Location", "经度 = $lon, 纬度 = $lat")
-            displayMap(lon, lat)
-        }
+
+
     }
 
     private fun displayMap(lon: Double, lat: Double) {
@@ -299,7 +314,6 @@ class AMapMeasureFragment : BaseFragment() {
 
     private val allPolygons = mutableListOf<List<Point>>() // 存储所有地块坐标
     private fun showLandOnMap(list: List<LandEntity>) {
-
         // 清空上次记录
         clear()
         list.forEach { land ->
@@ -363,14 +377,11 @@ class AMapMeasureFragment : BaseFragment() {
     }
 
     private fun handleLandClick(landId: Long) {
-
         lifecycleScope.launch {
-
             val land = AppDatabase
                 .getDatabase(requireActivity())
                 .landDao()
                 .getById(landId)
-
             land?.let {
                 showLandDialog(it)
             }
@@ -415,13 +426,11 @@ class AMapMeasureFragment : BaseFragment() {
             .withPoint(centerPoint)
             .withIconImage(bitmap)
 
-
         // 创建文字对象
         val pointAnnotation = pointManager2.create(pointAnnotationOptions)
 
         // 保存到全局集合
         textAnnotations.add(pointAnnotation)
-
 
 //        // 先删除之前的文字（防止重复叠加）
 //        areaAnnotationId.let { id ->
@@ -445,7 +454,6 @@ class AMapMeasureFragment : BaseFragment() {
             .setMessage("是否删除该地块？")
             .setCancel("取消")
             .setConfirm("确定") {
-
                 lifecycleScope.launch {
                     val dao = AppDatabase.getDatabase(requireContext()).landDao()
                     val landList = dao.getAll()

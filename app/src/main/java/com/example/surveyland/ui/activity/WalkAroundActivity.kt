@@ -16,6 +16,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.RequiresPermission
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.buddha.activity.BaseActivity
@@ -44,6 +45,7 @@ import com.mapbox.maps.extension.style.sources.addSource
 import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
 import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
 import com.mapbox.maps.extension.style.sources.getSourceAs
+import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
@@ -164,6 +166,12 @@ class WalkAroundActivity: BaseActivity() {
         locationComponentPlugin.updateSettings {
             enabled = true          // 仍然启用定位功能
             pulsingEnabled = false  // 去掉蓝点脉冲效果
+            locationPuck = LocationPuck2D(
+                bearingImage = AppCompatResources.getDrawable(
+                    this@WalkAroundActivity,
+                    R.drawable.cancel_account_is
+                )
+            )
         }
         locationComponentPlugin.addOnIndicatorPositionChangedListener { point ->
             // 初始化起始点

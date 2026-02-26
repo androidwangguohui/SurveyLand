@@ -172,9 +172,7 @@ class MeasureDistanceActivity: BaseActivity() {
 
             totalDistance += distanceMeter
 
-
             mActivityMeasureDistanceBinding.measures.text = "总长度："+String.format("%.2f m", totalDistance)
-
 
             // 计算中点
             val midPoint = getMidPoint(previous, point)
@@ -217,12 +215,10 @@ class MeasureDistanceActivity: BaseActivity() {
         canvas.drawText(text, width / 2f, height / 2f, paint)
 
         // 5️⃣ 添加文字 Annotation
-        val pointAnnotationOptions = PointAnnotationOptions()
+        PointAnnotationOptions()
             .withPoint(point)
             .withIconImage(bitmap)
 
-        // 创建新的文字 Annotation
-        val annotation = pointManager?.create(pointAnnotationOptions)
     }
     private fun initStyle(style: Style) {
         style.addSource(
