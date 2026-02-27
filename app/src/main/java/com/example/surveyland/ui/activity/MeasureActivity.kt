@@ -31,6 +31,7 @@ import com.example.surveyland.util.MapUtils
 import com.example.surveyland.util.StringUtils
 import com.example.surveyland.util.TianDiTuRepository
 import com.google.gson.Gson
+import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.style.layers.getLayer
@@ -51,6 +52,7 @@ import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManage
 import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 import com.mapbox.maps.plugin.attribution.attribution
 import com.mapbox.maps.plugin.compass.compass
+import com.mapbox.maps.plugin.gestures.addOnMapClickListener
 import com.mapbox.maps.plugin.logo.logo
 import com.mapbox.maps.plugin.scalebar.scalebar
 import com.mapbox.turf.TurfMeasurement
@@ -68,6 +70,8 @@ class MeasureActivity : BaseActivity() {
     private lateinit var mapboxMap: MapboxMap
     private lateinit var zoomMapbox: MapboxMap
     private lateinit var pointManager: PointAnnotationManager
+
+    private lateinit var textManager: PointAnnotationManager
     private lateinit var zoomPointManager: PointAnnotationManager
     private lateinit var zoomLineManager: PolylineAnnotationManager
     private lateinit var lineManager: PolylineAnnotationManager
@@ -89,7 +93,6 @@ class MeasureActivity : BaseActivity() {
     private val ZOOM_DASH_SOURCE = "zoom-dash-line"
     private val ZOOM_DASH_LAYER = "zoom-dash-layer"
     private var areaAnnotationId  :Long = 0
-    private val pointToIndexMap = mutableMapOf<PointAnnotation, Int>()
 
     @androidx.annotation.RequiresPermission(allOf = [android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -164,7 +167,29 @@ class MeasureActivity : BaseActivity() {
             )
         }
     }
+    private fun initInsertPointFeature() {
 
+        mapboxMap.addOnMapClickListener { clickPoint ->
+
+            if (points.size < 2) return@addOnMapClickListener true
+            // 不允许重复添加同一点（经纬度相同或非常接近）
+            if (isDuplicatePoint(clickPoint)) {
+                AppToast.show(this,"不能重复添加相同位置的点")
+                return@addOnMapClickListener true
+            }
+            //判断是否在线上
+            val result = MapUtils.findClosestSegment(mapboxMap,points,clickPoint)
+            if (result != null) {
+                pointAnnotations.clear()
+                pointManager.deleteAll()
+                lineManager.deleteAll()
+                points.add(result.insertIndex, result.projectedPoint)
+                drawVertices(points)
+            }
+
+            true
+        }
+    }
     private fun initCompass() {
 
         val compass = mActivityMeasureBinding.mapView.compass
@@ -204,7 +229,7 @@ class MeasureActivity : BaseActivity() {
                     }
 
                     // 显示文字在面中心
-                    showAreaText(null,points, paint, pointManager, land.area)
+                    showAreaText(null,points, paint, textManager, land.area)
                 }
             }
         }
@@ -266,9 +291,14 @@ class MeasureActivity : BaseActivity() {
             initLayers(style)
             //如果是点击编辑进入
             initEdit()
-            //在这调用打点然后直接删除是解决首次完成后第一个点消失的问题
+            //在这调用打点然后直接删除是解决首次完成后第一个点消失的问题-------------
             addDian()
             delete()
+            //-------------------------------------------------------------
+            //在线上新增点位
+            initInsertPointFeature()
+            //点击点位准备拖拽图标
+            initMovIcon()
             mActivityMeasureBinding.btnAddPoint.setOnClickListener {
                 addDian()
             }
@@ -305,7 +335,7 @@ class MeasureActivity : BaseActivity() {
                         val pointAnnotation = annotation as? PointAnnotation ?: return
                         // 拖拽过程中实时更新线
                         // 1️⃣ 找到当前拖拽点在列表中的索引
-                        val index = pointToIndexMap[pointAnnotation] ?: return
+                        val index = pointAnnotation.getData()?.asInt ?: return
                         points[index] = pointAnnotation.point
                         updateLines()
                         // 更新放大 MapView
@@ -316,15 +346,13 @@ class MeasureActivity : BaseActivity() {
                     override fun onAnnotationDragFinished(annotation: Annotation<*>) {
                         val pointAnnotation = annotation as? PointAnnotation ?: return
                         // 拖拽结束，最终更新
-                        val index = pointToIndexMap[pointAnnotation] ?: return
+                        val index = pointAnnotation.getData()?.asInt ?: return
                         points[index] = pointAnnotation.point
                         updateLines()
-
                         mActivityMeasureBinding.mapViewZoom.visibility = View.GONE
                     }
                 })
             }
-
         }
         //去掉logo
         mActivityMeasureBinding.mapView.logo.updateSettings {
@@ -341,6 +369,28 @@ class MeasureActivity : BaseActivity() {
 
         //显示当前位置
         loadDangqian()
+    }
+
+    private fun initMovIcon() {
+        pointManager.addClickListener { annotation ->
+            //先隐藏所有自定义icon
+            hideAllCustomIcons()
+            //再更新点击的点位自定义icon
+            annotation.iconImageBitmap = BitmapFactory.decodeResource(resources, R.drawable.img_svip_add_three)
+            pointManager.update(annotation)
+
+            true
+        }
+    }
+
+    private fun hideAllCustomIcons() {
+        if(pointAnnotations.isNotEmpty()){
+            pointAnnotations.forEach { pa ->
+                pa.iconImageBitmap = BitmapFactory.decodeResource(resources, R.drawable.dian)
+                pointManager.update(pa)
+            }
+        }
+
     }
 
     private fun updateZoomMap(center: Point) {
@@ -390,23 +440,43 @@ class MeasureActivity : BaseActivity() {
             AppToast.show(this,"不能重复添加相同位置的点")
             return
         }
+        hideAllCustomIcons()
+        points.add(center)
         // 添加点
         val annotation = pointManager.create(
             PointAnnotationOptions()
                 .withPoint(center)
+                .withData(JsonPrimitive(points.indexOf(center)))
                 .withIconImage(BitmapFactory.decodeResource(
                     resources,
                     R.drawable.dian   // 你自己的图标
                 ))
                 .withDraggable(true)
         )
-        points.add(center)
         pointAnnotations.add(annotation)
-        pointToIndexMap[annotation] = points.size - 1 // 保存索引
         //更新点之间的连接线
         updateLines()
-        mActivityMeasureBinding.tvDistance.text = "周长: %.2f m".format(MapUtils.getPerimeter(points))
+
     }
+
+    private fun drawVertices(points: List<Point>) {
+        points.forEachIndexed { index, point ->
+            // 添加点
+            val annotation = pointManager.create(
+                PointAnnotationOptions()
+                    .withPoint(point)
+                    .withData(JsonPrimitive(index))
+                    .withIconImage(BitmapFactory.decodeResource(
+                        resources,
+                        R.drawable.dian   // 你自己的图标
+                    ))
+                    .withDraggable(true)
+            )
+            pointAnnotations.add(annotation)
+        }
+        updateLines()
+    }
+
     private fun isDuplicatePoint(newPoint: Point): Boolean {
         val thresholdMeters = 1.0 // 认为 1 米以内的点算重复
         for (p in points) {
@@ -443,22 +513,27 @@ class MeasureActivity : BaseActivity() {
             // 面积
             val area = TurfMeasurement.area(Polygon.fromLngLats(listOf(closedPoints)))
             // 显示文字在面中心
-            showAreaText(null, points, paint, pointManager, area)
+            showAreaText(null, points, paint, textManager, area)
         }else{
             // 3️⃣ 删除面积文字
             areaAnnotationId.let { id ->
-                val annotation = pointManager.annotations.find { it.id == id }
+                val annotation = textManager.annotations.find { it.id == id }
                 if (annotation != null) {
-                    pointManager.delete(annotation)
+                    textManager.delete(annotation)
                 }
                 areaAnnotationId = 0
             }
         }
-
+        if(points.isNotEmpty()){
+            mActivityMeasureBinding.tvDistance.text = "周长: %.2f m".format(MapUtils.getPerimeter(points))
+        }else{
+            mActivityMeasureBinding.tvDistance.text = "周长:0m"
+        }
     }
     // 撤回点
     private fun undoPoint() {
         if (points.isEmpty()) return
+        hideAllCustomIcons()
         // 删除最后一个点和对应 Annotation
         points.removeLast()
         val lastAnnotation = pointAnnotations.removeLast()
@@ -485,9 +560,9 @@ class MeasureActivity : BaseActivity() {
 
         // 3️⃣ 删除面积文字
         areaAnnotationId.let { id ->
-            val annotation = pointManager.annotations.find { it.id == id }
+            val annotation = textManager.annotations.find { it.id == id }
             if (annotation != null) {
-                pointManager.delete(annotation)
+                textManager.delete(annotation)
             }
             areaAnnotationId = 0
         }
@@ -519,7 +594,7 @@ class MeasureActivity : BaseActivity() {
             val area = TurfMeasurement.area(Polygon.fromLngLats(listOf(closedPoints)))
 
             // 显示文字在面中心
-            showAreaText(style, points, paint, pointManager, area)
+            showAreaText(style, points, paint, textManager, area)
 
             //虚线变实线
             mapboxMap.getStyle { style ->
@@ -673,6 +748,7 @@ class MeasureActivity : BaseActivity() {
     // 初始化图层
     private fun initLayers(style: Style) {
         pointManager = mActivityMeasureBinding.mapView.annotations.createPointAnnotationManager()
+        textManager = mActivityMeasureBinding.mapView.annotations.createPointAnnotationManager()
         lineManager = mActivityMeasureBinding.mapView.annotations.createPolylineAnnotationManager()
         polygonManager = mActivityMeasureBinding.mapView.annotations.createPolygonAnnotationManager()
         // 实线

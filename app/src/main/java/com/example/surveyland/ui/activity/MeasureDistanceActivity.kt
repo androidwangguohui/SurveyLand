@@ -46,7 +46,6 @@ class MeasureDistanceActivity: BaseActivity() {
     private lateinit var mapboxMap: MapboxMap
     // 临时测距点
     private val measurePoints = mutableListOf<Point>()
-
     // 已完成测距线
     private val completedLines = mutableListOf<List<Point>>()
     private var pointManager: PointAnnotationManager? = null
@@ -103,9 +102,6 @@ class MeasureDistanceActivity: BaseActivity() {
                     featureCollection(FeatureCollection.fromFeatures(features))
                 }
             }
-//                style.getSourceAs<GeoJsonSource>("measure-source")?.apply {
-//                    geometry(LineString.fromLngLats(measurePoints))
-//                }
         }
     }
     private fun initMap() {
@@ -164,8 +160,6 @@ class MeasureDistanceActivity: BaseActivity() {
 
             val previous = measurePoints[measurePoints.size - 2]
 
-            updateMeasureLine()
-
             // 计算距离（单位：公里）
             val distanceKm = TurfMeasurement.distance(previous, point)
             val distanceMeter = distanceKm * 1000
@@ -178,6 +172,8 @@ class MeasureDistanceActivity: BaseActivity() {
             val midPoint = getMidPoint(previous, point)
             // 显示当前段距离
             showDistanceLabel(midPoint, String.format("%.2f m", distanceMeter))
+
+            updateMeasureLine()
         }
     }
     private fun isDuplicatePoint(newPoint: Point): Boolean {
@@ -215,10 +211,10 @@ class MeasureDistanceActivity: BaseActivity() {
         canvas.drawText(text, width / 2f, height / 2f, paint)
 
         // 5️⃣ 添加文字 Annotation
-        PointAnnotationOptions()
+        var pointText = PointAnnotationOptions()
             .withPoint(point)
             .withIconImage(bitmap)
-
+        textManager?.create(pointText)
     }
     private fun initStyle(style: Style) {
         style.addSource(
@@ -230,7 +226,7 @@ class MeasureDistanceActivity: BaseActivity() {
         style.addLayer(
             lineLayer("measure-layer", "measure-source") {
                 lineColor(Color.YELLOW)
-                lineWidth(4.0)
+                lineWidth(3.0)
                 lineCap(LineCap.ROUND)
                 lineJoin(LineJoin.ROUND)
             }

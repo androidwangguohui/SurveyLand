@@ -3,6 +3,7 @@ package com.example.surveyland.util
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Environment
+import com.example.surveyland.entity.SegmentInsertResult
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
@@ -23,6 +24,7 @@ import java.io.FileOutputStream
 import kotlin.collections.mutableListOf
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.sqrt
 
 object  MapUtils {
 
@@ -167,5 +169,66 @@ object  MapUtils {
             area < 20000000 -> 12.0
             else -> 11.0                // 超大地块
         }
+    }
+
+    //查找最近线段
+    open fun findClosestSegment(mapboxMap:MapboxMap,polygonPoints:List<Point>,clickPoint: Point): SegmentInsertResult? {
+
+        var minDistancePx = Double.MAX_VALUE
+        var bestResult: SegmentInsertResult? = null
+
+        val size = polygonPoints.size
+        val isClosed = polygonPoints.first() == polygonPoints.last()
+
+        val segmentCount = if (isClosed) size - 1 else size - 1
+
+        for (i in 0 until segmentCount) {
+
+            val start = polygonPoints[i]
+            val end = if (i == size - 1) polygonPoints[0] else polygonPoints[i + 1]
+
+            val projected = projectPointOnSegment(clickPoint, start, end)
+
+            val screenClick = mapboxMap.pixelForCoordinate(clickPoint)
+            val screenProjected = mapboxMap.pixelForCoordinate(projected)
+
+            val dx = screenClick.x - screenProjected.x
+            val dy = screenClick.y - screenProjected.y
+            val distancePx = sqrt(dx * dx + dy * dy)
+
+            if (distancePx < 15 && distancePx < minDistancePx) {
+                minDistancePx = distancePx
+                bestResult = SegmentInsertResult(i + 1, projected, distancePx)
+            }
+        }
+
+        return bestResult
+    }
+    //计算点在线段上的投影
+    private fun projectPointOnSegment(
+        p: Point,
+        a: Point,
+        b: Point
+    ): Point {
+
+        val px = p.longitude()
+        val py = p.latitude()
+        val ax = a.longitude()
+        val ay = a.latitude()
+        val bx = b.longitude()
+        val by = b.latitude()
+
+        val dx = bx - ax
+        val dy = by - ay
+
+        if (dx == 0.0 && dy == 0.0) return a
+
+        val t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)
+        val clampedT = t.coerceIn(0.0, 1.0)
+
+        val projX = ax + clampedT * dx
+        val projY = ay + clampedT * dy
+
+        return Point.fromLngLat(projX, projY)
     }
 }
