@@ -20,7 +20,10 @@ import com.example.map_amap.util.LocationPermissionViewModel
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.amap.api.location.AMapLocationClient
+import com.amap.api.location.AMapLocationClientOption
 import com.example.surveyland.dao.AppDatabase
+import com.example.surveyland.dao.LandDao
 import com.example.surveyland.databinding.AmpMeasureFragmentBinding
 import com.example.surveyland.entity.LandEntity
 import com.example.surveyland.entity.PositionEvent
@@ -28,7 +31,9 @@ import com.example.surveyland.ui.activity.MeasureActivity
 import com.example.surveyland.ui.activity.MeasureDistanceActivity
 import com.example.surveyland.ui.activity.SearchActivity
 import com.example.surveyland.ui.activity.WalkAroundActivity
+import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
+import com.example.surveyland.util.MapClusterHelper
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.mapbox.geojson.Feature
@@ -36,6 +41,7 @@ import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.LineString
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Polygon
+import com.mapbox.maps.CameraBoundsOptions
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
@@ -43,6 +49,7 @@ import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.generated.fillLayer
 import com.mapbox.maps.extension.style.layers.generated.lineLayer
 import com.mapbox.maps.extension.style.layers.getLayer
+import com.mapbox.maps.extension.style.layers.properties.generated.IconAnchor
 import com.mapbox.maps.extension.style.sources.addSource
 import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
 import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
@@ -72,6 +79,7 @@ import kotlinx.coroutines.withContext
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import kotlin.collections.mutableListOf
 
 class AMapMeasureFragment : BaseFragment() {
 
@@ -79,6 +87,8 @@ class AMapMeasureFragment : BaseFragment() {
     private lateinit var polygonManager: PolygonAnnotationManager
     private lateinit var polylineManager: PolylineAnnotationManager
     private lateinit var pointManager2: PointAnnotationManager
+    
+    private lateinit var pointManager3: PointAnnotationManager
     private val POLYGON_SOURCE = "polygon1-source"
     private val POLYGON_LAYER = "polygon1-layer"
     private val SOLID_SOURCE = "solid1-source"
@@ -90,7 +100,7 @@ class AMapMeasureFragment : BaseFragment() {
 
     private var param1: String? = null
 
-
+    private var locationClient: AMapLocationClient? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -101,6 +111,7 @@ class AMapMeasureFragment : BaseFragment() {
         polygonManager = mAmpMeasureFragmentBinding.mapView.annotations.createPolygonAnnotationManager()
         polylineManager = mAmpMeasureFragmentBinding.mapView.annotations.createPolylineAnnotationManager()
         pointManager2 = mAmpMeasureFragmentBinding.mapView.annotations.createPointAnnotationManager()
+        pointManager3 = mAmpMeasureFragmentBinding.mapView.annotations.createPointAnnotationManager()
         mapboxMap = mAmpMeasureFragmentBinding.mapView.getMapboxMap()
 
         return mAmpMeasureFragmentBinding.root
@@ -123,7 +134,7 @@ class AMapMeasureFragment : BaseFragment() {
         }
         mAmpMeasureFragmentBinding.location.setOnClickListener {
             isSearch = false
-            loadLocation()
+            startLocation()
         }
         mAmpMeasureFragmentBinding.search.setOnClickListener {
             startActivity(SearchActivity::class.java)
@@ -134,9 +145,31 @@ class AMapMeasureFragment : BaseFragment() {
 
             val latitude = centerPoint.latitude()
             val longitude = centerPoint.longitude()
-            startActivity(MeasureDistanceActivity::class.java,latitude,longitude)
+            startActivity(MeasureDistanceActivity::class.java,latitude,longitude,mapboxMap.cameraState.zoom)
         }
     }
+
+    var isHide: Boolean = false
+    private fun setHide() {
+        if(mAmpMeasureFragmentBinding.tvHide.text == "显示"){
+            isHide = false
+            isZoom = false
+            val zoom = mapboxMap.cameraState.zoom
+            if (zoom < zoomThreshold){
+                updateMapDisplay()
+            }else{
+                loadAllLandFromDatabase(1)
+            }
+            mAmpMeasureFragmentBinding.tvHide.text = "隐藏"
+        }else{
+            isHide = true
+            clear()
+            pointManager3.deleteAll()
+            hideLandInfo()
+            mAmpMeasureFragmentBinding.tvHide.text = "显示"
+        }
+    }
+
     private val locationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) startPlotLand(true,1)
@@ -163,7 +196,14 @@ class AMapMeasureFragment : BaseFragment() {
     private fun initMap(type: Int) {
 
         mapboxMap.loadStyleJson(getTdtStyleJson()) { style ->
-
+            //缩放监听，处理地块显示逻辑
+            mapboxMap.addOnCameraChangeListener {
+                if(mLandList.isNotEmpty() && !isHide)
+                updateMapDisplay()
+            }
+            mAmpMeasureFragmentBinding.tvHide.setOnClickListener {
+                setHide()
+            }
             //去掉logo
             mAmpMeasureFragmentBinding.mapView.logo.updateSettings {
                 enabled = false
@@ -178,12 +218,44 @@ class AMapMeasureFragment : BaseFragment() {
             }
             initLayers(style)
             //显示当前位置
-            if(type == 0)loadLocation()
+            if(type == 0)startLocation()
             //点击画地块
             loadDangqian()
             //点击地块
             bindLandClickListener()
         }
+    }
+    var isZoom : Boolean = false
+    val zoomThreshold = 9.0//缩放到多少级进行聚合显示
+    private fun updateMapDisplay() {
+        val zoom = mapboxMap.cameraState.zoom
+
+        if (zoom < zoomThreshold) {
+            if(!isZoom){
+                isZoom = true
+                // 低缩放 → 聚合显示图标
+                hideLandInfo()// 隐藏所有地块线
+                clear()
+                showClusterIcons()
+            }
+        } else {
+            if(isZoom){
+                isZoom = false
+                // 高缩放 → 显示地块详情
+                pointManager3.deleteAll() // 隐藏聚合图标
+                loadAllLandFromDatabase(1)
+            }
+        }
+    }
+
+    fun showClusterIcons() {
+        val helper = MapClusterHelper(mapboxMap, pointManager3)
+        helper.showClusters(
+            requireActivity(),
+            landList = mLandList,
+            cellSizeMeters = 10000.0,
+            zoomWhenClick = 15.0
+        )
     }
 
     private fun bindLandClickListener() {
@@ -224,8 +296,49 @@ class AMapMeasureFragment : BaseFragment() {
         }
     }
 
-    private fun loadLocation() {
+    private fun startLocation() {
+        if(!isSearch) {
+            locationClient = AMapLocationClient(requireContext())
 
+            val option = AMapLocationClientOption()
+
+            // 高精度模式（GPS + 网络）
+            option.locationMode =
+                AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
+
+            option.isOnceLocation = true         // 只定位一次
+            option.isNeedAddress = false        // 不需要地址更快
+            option.httpTimeOut = 15000
+            option.interval = 2000
+            option.isLocationCacheEnable = false
+
+            locationClient?.setLocationOption(option)
+
+            locationClient?.setLocationListener { location ->
+                if (location != null) {
+                    if (location.errorCode == 0) {
+
+                        val latitude = location.latitude
+                        val longitude = location.longitude
+                        displayMap(longitude, latitude)
+                        Log.d("定位成功", "纬度:$latitude 经度:$longitude")
+
+                    } else {
+                        AppToast.show(requireActivity(),"定位失败，请稍后重试")
+                        Log.e(
+                            "定位失败",
+                            "errorCode:${location.errorCode}, errorInfo:${location.errorInfo}"
+                        )
+                    }
+                    // 定位完成后停止
+                    locationClient?.stopLocation()
+                }
+            }
+            locationClient?.startLocation()
+        }
+    }
+
+    private fun loadLocation() {
         if(!isSearch){
             //通过高德获取当前位置
             val locationHelper = com.example.surveyland.util.SimpleLocationHelper(requireActivity())
@@ -234,41 +347,20 @@ class AMapMeasureFragment : BaseFragment() {
                 displayMap(lon, lat)
             }
         }
-
-        //通过mapbox获取当前位置
-//        val locationPlugin = mAmpMeasureFragmentBinding.mapView.location
-//        locationPlugin.updateSettings {
-//            enabled = true
-//            pulsingEnabled = true
-//        }
-//        locationPlugin.addOnIndicatorPositionChangedListener(
-//            object : OnIndicatorPositionChangedListener {
-//                override fun onIndicatorPositionChanged(point: Point) {
-//                    val lat= point.latitude()
-//                    val lng = point.longitude()
-//                    mapboxMap.setCamera(
-//                        CameraOptions.Builder()
-//                            .center(Point.fromLngLat(lng, lat))
-//                            .zoom(15.0)
-//                            .build()
-//                    )
-//
-//                    locationPlugin.removeOnIndicatorPositionChangedListener(this)
-//                }
-//            }
-//        )
-
-
-
     }
 
     private fun displayMap(lon: Double, lat: Double) {
+        val bounds = CameraBoundsOptions.Builder()
+            .minZoom(3.0)  // 最小缩放
+            .maxZoom(17.49) // 最大缩放
+            .build()
         mapboxMap.setCamera(
             CameraOptions.Builder()
                 .center(Point.fromLngLat(lon, lat))
                 .zoom(15.0)
                 .build()
         )
+        mapboxMap.setBounds(bounds)
     }
 
     private fun loadDangqian() {
@@ -282,13 +374,13 @@ class AMapMeasureFragment : BaseFragment() {
 
         val latitude = centerPoint.latitude()
         val longitude = centerPoint.longitude()
-        startActivity(if(flag) WalkAroundActivity::class.java else MeasureActivity::class.java, "latitude", "longitude", latitude, longitude,type,id)
+        startActivity(if(flag) WalkAroundActivity::class.java else MeasureActivity::class.java, "latitude", "longitude", latitude, longitude,type,id,mapboxMap.cameraState.zoom)
     }
+
+    var mLandList :List<LandEntity> = mutableListOf()
     private fun loadAllLandFromDatabase(type: Int) {
         // 1️⃣ 删除所有地块信息
-        polygonManager.deleteAll()
-        polylineManager.deleteAll()
-        pointManager2.deleteAll()
+        hideLandInfo()
         if (textAnnotations.isNotEmpty()) {
             // 删除文字
             textAnnotations.forEach { pointManager2.delete(it) }
@@ -296,20 +388,35 @@ class AMapMeasureFragment : BaseFragment() {
             textAnnotations.clear()
         }
         lifecycleScope.launch {
-
-            val landList = AppDatabase.getDatabase(requireContext())
+            mLandList = AppDatabase.getDatabase(requireContext())
                 .landDao()
                 .getAll()
 
-            if(landList.isNotEmpty()){
+            if(mLandList.isNotEmpty()){
                 withContext(Dispatchers.Main) {
-                    showLandOnMap(landList)
+                    showLandOnMap(mLandList)
                 }
             }else{
                 initMap(type)
             }
         }
     }
+
+    private fun hideLandInfo() {
+        mapboxMap.getStyle { style ->
+            // 隐藏面
+            style.getSourceAs<GeoJsonSource>(POLYGON_SOURCE)
+                ?.featureCollection(FeatureCollection.fromFeatures(emptyList()))
+
+            // 隐藏线
+            style.getSourceAs<GeoJsonSource>(SOLID_SOURCE)
+                ?.featureCollection(FeatureCollection.fromFeatures(emptyList()))
+        }
+        polygonManager.deleteAll()
+        polylineManager.deleteAll()
+        pointManager2.deleteAll()
+    }
+
     private val gson = Gson()
 
     private val allPolygons = mutableListOf<List<Point>>() // 存储所有地块坐标
@@ -460,7 +567,7 @@ class AMapMeasureFragment : BaseFragment() {
                     val targetLand = landList.firstOrNull { it.id == landId }
                     targetLand?.let { dao.delete(it) }
                     //删除后重新刷新地块
-                    loadAllLandFromDatabase(0)
+                    loadAllLandFromDatabase(1)
                 }
             }
             .show()
@@ -480,6 +587,7 @@ class AMapMeasureFragment : BaseFragment() {
     override fun onDestroy() {
         super.onDestroy()
         mAmpMeasureFragmentBinding.mapView.onDestroy()
+        locationClient?.onDestroy()
         EventBus.getDefault().unregister(this)
 
     }

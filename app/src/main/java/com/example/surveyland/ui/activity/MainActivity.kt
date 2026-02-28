@@ -186,6 +186,7 @@ class MainActivity: BaseActivity() ,DialogInterface.OnClickListener{
     // ===============================
     // 开始定位
     // ===============================
+    var isNotify = false
     private fun startLocation(isPrecise: Boolean) {
 
 //        if (isPrecise) {
@@ -196,7 +197,10 @@ class MainActivity: BaseActivity() ,DialogInterface.OnClickListener{
 
         // 在这里初始化地图定位层
         // Mapbox 或 高德定位代码写这里
-        permissionVM.notifyGranted()
+        if(isPrecise && !isNotify){
+            isNotify = true
+            permissionVM.notifyGranted()
+        }
         dismissLoading()
     }
 

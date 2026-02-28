@@ -7,6 +7,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
     <TextView
+        android:id="@+id/tvHide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#AA000000"
+        android:textColor="#fff"
+        android:padding="10dp"
+        android:text="隐藏"
+        android:layout_marginLeft="46dp"
+        android:layout_marginTop="96dp"/>
+    <TextView
         android:id="@+id/tvGo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

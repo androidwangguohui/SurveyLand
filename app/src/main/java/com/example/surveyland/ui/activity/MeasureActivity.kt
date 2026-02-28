@@ -834,12 +834,17 @@ class MeasureActivity : BaseActivity() {
 
     @androidx.annotation.RequiresPermission(allOf = [android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun loadDangqian() {
+        val bounds = CameraBoundsOptions.Builder()
+            .minZoom(3.0)  // 最小缩放
+            .maxZoom(17.49) // 最大缩放
+            .build()
         mapboxMap.setCamera(
             CameraOptions.Builder()
                 .center(Point.fromLngLat(intent.getDoubleExtra("longitude",0.0), intent.getDoubleExtra("latitude",0.0)))
-                .zoom(15.0)
+                .zoom(intent.getDoubleExtra("zoom",14.0))
                 .build()
         )
+        mapboxMap.setBounds(bounds)
     }
     // ================= 生命周期 =================
 

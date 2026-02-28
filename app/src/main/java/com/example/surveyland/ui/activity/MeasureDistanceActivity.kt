@@ -16,6 +16,7 @@ import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.LineString
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraBoundsOptions
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapboxMap
 import com.mapbox.maps.Style
@@ -235,12 +236,17 @@ class MeasureDistanceActivity: BaseActivity() {
     }
 
     private fun loadDangqian() {
+        val bounds = CameraBoundsOptions.Builder()
+            .minZoom(3.0)  // 最小缩放
+            .maxZoom(17.49) // 最大缩放
+            .build()
         mapboxMap.setCamera(
             CameraOptions.Builder()
                 .center(Point.fromLngLat(intent.getDoubleExtra("longitude",0.0), intent.getDoubleExtra("latitude",0.0)))
-                .zoom(15.0)
+                .zoom(intent.getDoubleExtra("zoom",15.0))
                 .build()
         )
+        mapboxMap.setBounds(bounds)
     }
 }
 

@@ -43,12 +43,12 @@ open class BaseFragment : androidx.fragment.app.Fragment() {
 
         int: Double?,
         int2: Double?,
-
+        zoom: Double? = 15.0
     ){
         var intent = Intent(requireActivity(),mAppCompatActivity)
         intent.putExtra("latitude",int)
         intent.putExtra("longitude",int2)
-
+        intent.putExtra("zoom",zoom)
         startActivity(intent)
     }
     open fun startActivity(
@@ -59,12 +59,14 @@ open class BaseFragment : androidx.fragment.app.Fragment() {
         int2: Double?,
         type: Int? = 1,
         id: Long? = 0,
+        zoom: Double? = 15.0
     ){
         var intent = Intent(requireActivity(),mAppCompatActivity)
         intent.putExtra(name,int)
         intent.putExtra(name2,int2)
         intent.putExtra("type",type)
         intent.putExtra("edit_id",id)
+        intent.putExtra("zoom",zoom)
         startActivity(intent)
     }
 }
