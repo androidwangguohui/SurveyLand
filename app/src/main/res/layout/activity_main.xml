@@ -20,5 +20,5 @@
         android:background="@color/white"
         app:tabTextColor="@color/black"
         app:tabSelectedTextColor="#ddff9800"
-        app:tabIndicatorColor="@color/purple_700"/>
+        app:tabIndicatorColor="@color/black"/>
 </LinearLayout>

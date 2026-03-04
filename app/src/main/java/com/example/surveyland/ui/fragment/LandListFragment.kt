@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -42,7 +43,7 @@ class LandListFragment: BaseFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         mFragmentLandListBinding.recyclerView.layoutManager = LinearLayoutManager(requireActivity())
-        adapter = LandAdapter (requireActivity(),mutableListOf()){
+        adapter = LandAdapter (requireActivity(),mutableListOf(), onClick = {
             if(it.type == "走一圈"){
                 AppToast.show(requireContext(),"走一圈不可编辑")
             }else{
@@ -60,7 +61,16 @@ class LandListFragment: BaseFragment() {
                 // 点击跳转编辑
 
             }
-        }
+        } , onNameChanged = {
+            lifecycleScope.launch {
+                val upId = AppDatabase.getDatabase(requireActivity())
+                    .landDao()
+                    .update(it)
+                // 插入数据库，获取生成的 id
+                Log.e("更新地块ID", "$upId") // 👈 这里就是存进去的 id
+            }
+
+        })
 
         mFragmentLandListBinding.recyclerView.adapter = adapter
 

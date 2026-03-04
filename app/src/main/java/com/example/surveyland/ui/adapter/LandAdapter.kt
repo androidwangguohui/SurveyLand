@@ -8,6 +8,8 @@ import android.icu.text.DecimalFormat
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -23,7 +25,8 @@ import kotlinx.coroutines.launch
 class LandAdapter(
     private val context: Context,
     private val list: MutableList<LandEntity>,
-    private val onClick: (LandEntity) -> Unit
+    private val onClick: (LandEntity) -> Unit,
+    private val onNameChanged: (LandEntity) -> Unit,
 
 ) : ListAdapter<LandEntity, LandAdapter.LandViewHolder>(DiffCallback()) {
 
@@ -41,7 +44,7 @@ class LandAdapter(
         val item = list [position]
         val df = DecimalFormat("#.##") // 保留两位小数
         val formatted = df.format(item.distance) // "123.46"
-        holder.binding.tvName.text = item.villageName
+        holder.binding.tvName.setText(item.villageName)
         holder.binding.tvType.text = item.type
 //        holder.binding.tvArea.text = "${item.area} ㎡"
         holder.binding.tvArea.text = "面积："+"%.2f亩".format(item.area / 666.67)
@@ -57,8 +60,21 @@ class LandAdapter(
         holder.itemView.setOnClickListener {
             onClick(item)
         }
+        holder.binding.ivEidt.setOnClickListener {
+            holder.binding.tvName.requestFocus() // 请求焦点
+            // 将光标移动到文本末尾
+            holder.binding.tvName.setSelection(holder.binding.tvName.text.length)
+            // 弹出软键盘
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(holder.binding.tvName, InputMethodManager.SHOW_IMPLICIT)
+        }
         holder.binding.tvNavigation.setOnClickListener {
             navigateToLand(item.lat,item.lng)
+        }
+        holder.binding.tvName.doAfterTextChanged {
+            item.villageName = it.toString()
+            onNameChanged(item)
+
         }
     }
     override fun getItemCount(): Int = list.size

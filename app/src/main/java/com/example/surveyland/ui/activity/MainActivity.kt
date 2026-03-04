@@ -61,6 +61,7 @@ class MainActivity: BaseActivity() ,DialogInterface.OnClickListener{
                 else -> ""
             }
         }.attach()
+//        mActivityMainBinding.viewPager.offscreenPageLimit = 3
     }
 
 

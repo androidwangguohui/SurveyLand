@@ -209,6 +209,7 @@ class MeasureActivity : BaseActivity() {
         }
     }
     private val gson = Gson()
+    private var newName :String = ""
     private fun initEdit() {
         var type = intent.getIntExtra("type",0)
         val editId = intent.getLongExtra("edit_id",0)
@@ -219,6 +220,7 @@ class MeasureActivity : BaseActivity() {
                     .landDao()
                     .getById(editId)
                 land?.let {
+                    newName = land.villageName
                     points.clear()
                     val points2: List<Point> = gson.fromJson(
                         land.pointsJson,
@@ -390,7 +392,6 @@ class MeasureActivity : BaseActivity() {
                 pointManager.update(pa)
             }
         }
-
     }
 
     private fun updateZoomMap(center: Point) {
@@ -486,7 +487,6 @@ class MeasureActivity : BaseActivity() {
         return false
     }
     private fun updateLines() {
-
         mapboxMap.getStyle { style ->
             style.getSourceAs<GeoJsonSource>(SOLID_SOURCE)?.apply {
                 // 实线 ≥2 点
@@ -636,7 +636,7 @@ class MeasureActivity : BaseActivity() {
                     val centerFeature: Feature = TurfMeasurement.center(feature)
                     val centerPoint = centerFeature.geometry() as Point
                     DaoUtils.saveLand(this@MeasureActivity,
-                        name.toString(),
+                        if(type == 2)newName else name.toString(),
                         area,distance,
                         file.absolutePath,
                         centerPoint.latitude(),

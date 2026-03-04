@@ -10,7 +10,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
-import android.os.Looper
 import android.util.Log
 import android.view.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,12 +17,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import com.example.map_amap.util.LocationPermissionViewModel
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.amap.api.location.AMapLocationClient
 import com.amap.api.location.AMapLocationClientOption
 import com.example.surveyland.dao.AppDatabase
-import com.example.surveyland.dao.LandDao
 import com.example.surveyland.databinding.AmpMeasureFragmentBinding
 import com.example.surveyland.entity.LandEntity
 import com.example.surveyland.entity.PositionEvent
@@ -128,7 +125,7 @@ class AMapMeasureFragment : BaseFragment() {
                 initMap(0)
             }
         }
-
+        initView()
         mAmpMeasureFragmentBinding.tvGo.setOnClickListener {
             requestPermission()
         }
@@ -148,6 +145,12 @@ class AMapMeasureFragment : BaseFragment() {
             startActivity(MeasureDistanceActivity::class.java,latitude,longitude,mapboxMap.cameraState.zoom)
         }
     }
+
+    private fun initView() {
+
+    }
+
+
 
     var isHide: Boolean = false
     private fun setHide() {
