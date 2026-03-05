@@ -10,11 +10,12 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
 
-        maven { url 'https://maven.aliyun.com/repository/public' }
-
         google()
 
-        mavenCentral()
+        mavenCentral()// 默认中央仓库
+        maven { url 'https://repo1.maven.org/maven2/' }// 官方直链，可加可不加
+        maven { url 'https://repo.umeng.com/maven/' } // 旧 SDK
+        maven { url 'https://maven.aliyun.com/repository/public' }// 国内镜像
 
         // 高德仓库
 //        maven { url 'https://repo.amap.com/repository/maven-public/' }
@@ -31,6 +32,8 @@ dependencyResolutionManagement {
             }
         }
         maven { url 'https://repo.amap.com/repository/maven' }
+
+
     }
 }
 

@@ -37,6 +37,7 @@ android {
 }
 
 dependencies {
+
     implementation libs.androidx.core.ktx
     implementation libs.androidx.appcompat
     implementation libs.material
@@ -74,5 +75,12 @@ dependencies {
     //定位
     implementation "com.google.android.gms:play-services-location:21.0.1"
 
+    //eventbus
     implementation 'org.greenrobot:eventbus:3.3.1'
+
+    // 友盟基础库
+    implementation 'com.umeng.umsdk:common:9.6.3'
+
+    // 统计SDK
+    implementation 'com.umeng.umsdk:asms:1.8.0'
 }

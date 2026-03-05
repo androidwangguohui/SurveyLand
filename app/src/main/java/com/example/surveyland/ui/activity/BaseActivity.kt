@@ -6,6 +6,7 @@ import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import com.example.surveyland.ui.view.LoadingDialog
+import com.umeng.analytics.MobclickAgent
 
 
 open class BaseActivity: AppCompatActivity() {
@@ -70,6 +71,17 @@ open class BaseActivity: AppCompatActivity() {
         intent.putExtra(name2,int2)
         intent.putExtra("type",1)
         startActivity(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        MobclickAgent.onResume(this)
+    }
+
+
+    override fun onPause() {
+        super.onPause()
+        MobclickAgent.onPause(this)
     }
 
 }

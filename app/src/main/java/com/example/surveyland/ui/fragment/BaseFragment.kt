@@ -2,6 +2,7 @@ package com.example.surveyland.ui.fragment
 
 import android.content.Intent
 import com.example.surveyland.ui.view.LoadingDialog
+import com.example.surveyland.util.UMUtils
 
 open class BaseFragment : androidx.fragment.app.Fragment() {
 
@@ -68,5 +69,20 @@ open class BaseFragment : androidx.fragment.app.Fragment() {
         intent.putExtra("edit_id",id)
         intent.putExtra("zoom",zoom)
         startActivity(intent)
+    }
+
+
+    private val pageName: String
+        get() = this::class.java.simpleName
+
+
+    override fun onResume() {
+        super.onResume()
+        UMUtils.pageStart(pageName)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        UMUtils.pageEnd(pageName)
     }
 }

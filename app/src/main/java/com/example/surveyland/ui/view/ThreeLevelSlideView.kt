@@ -27,6 +27,7 @@ class ThreeLevelSlideView @JvmOverloads constructor(
     private var midHeight = 0 // 二级高度
     private var maxHeight = 0 // 三级高度
 
+    private var maxLevel = 3 // 最大层级，2 或 3
     private val animator = ValueAnimator()
 
     init {
@@ -62,6 +63,14 @@ class ThreeLevelSlideView @JvmOverloads constructor(
             }
         }
         addView(topLine)
+    }
+
+
+    fun setMaxLevel(level: Int) {
+        maxLevel = level.coerceIn(2, 3) // 只允许 2 或 3
+        if (currentLevel > maxLevel) {
+            setLayerHeight(maxLevel, true)
+        }
     }
 
     private fun dp2px(dp: Int): Int =
@@ -101,9 +110,21 @@ class ThreeLevelSlideView @JvmOverloads constructor(
 
     private fun moveBy(dy: Float) {
         val newHeight = height - dy
-        val clampedHeight = newHeight.coerceIn(minHeight.toFloat(), maxHeight.toFloat())
+//        val clampedHeight = newHeight.coerceIn(minHeight.toFloat(), maxHeight.toFloat())
+//        layoutParams.height = clampedHeight.toInt()
+//        requestLayout()
+
+
+        // 如果 maxLevel=2，禁止超过 midHeight
+        val upperLimit = when (maxLevel) {
+            2 -> midHeight.toFloat()
+            else -> maxHeight.toFloat()
+        }
+
+        val clampedHeight = newHeight.coerceIn(minHeight.toFloat(), upperLimit)
         layoutParams.height = clampedHeight.toInt()
         requestLayout()
+
     }
 
     private fun settleLevel() {
@@ -112,7 +133,7 @@ class ThreeLevelSlideView @JvmOverloads constructor(
             currentHeight < (minHeight + midHeight) / 2 -> 1
             currentHeight < (midHeight + maxHeight) / 2 -> 2
             else -> 3
-        }
+        }.coerceAtMost(maxLevel) // 限制最大层级
         setLayerHeight(targetLevel, true)
     }
 
@@ -142,7 +163,17 @@ class ThreeLevelSlideView @JvmOverloads constructor(
     }
 
     private fun toggleLevel() {
-        val nextLevel = (currentLevel % 3) + 1
+//        val nextLevel = ((currentLevel) % maxLevel) + 1
+        val nextLevel = when {
+            maxLevel == 2 -> if (currentLevel == 1) 2 else 1
+            maxLevel == 3 -> when (currentLevel) {
+                1 -> 2
+                2 -> 3
+                3 -> 2
+                else -> 2
+            }
+            else -> 2
+        }
         setLayerHeight(nextLevel, true)
     }
 }
