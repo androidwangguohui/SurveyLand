@@ -83,4 +83,8 @@ dependencies {
 
     // 统计SDK
     implementation 'com.umeng.umsdk:asms:1.8.0'
+
+    //ExoPlayer 播放视频
+    implementation "androidx.media3:media3-exoplayer:1.2.1"
+    implementation "androidx.media3:media3-ui:1.2.1"
 }

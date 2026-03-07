@@ -35,12 +35,29 @@
             android:orientation="vertical"
             android:gravity="center">
 
+            <LinearLayout
+                android:id="@+id/search"
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="50dp">
+                <EditText
+                    android:id="@+id/etSearch"
+                    android:layout_marginLeft="15dp"
+                    android:layout_gravity="center"
+                    android:background="@null"
+                    android:layout_width="match_parent"
+                    android:maxLength="12"
+                    android:textSize="18sp"
+                    android:layout_height="wrap_content"
+                    android:hint="搜索位置"/>
+            </LinearLayout>
+
             <TextView android:id="@+id/tvHide" style="@style/panelBtn" android:text="隐藏"/>
             <TextView android:id="@+id/tvGo" style="@style/panelBtn" android:text="走一圈"/>
             <TextView android:id="@+id/tvMeasure" style="@style/panelBtn" android:text="测距离"/>
             <TextView android:id="@+id/tvArea" style="@style/panelBtn" android:text="画地块"/>
             <TextView android:id="@+id/location" style="@style/panelBtn" android:text="定位"/>
-            <TextView android:id="@+id/search" style="@style/panelBtn" android:text="搜索"/>
+            <TextView android:id="@+id/playVideo" style="@style/panelBtn" android:text="播放视频"/>
         </LinearLayout>
 
         <!-- 内容 -->

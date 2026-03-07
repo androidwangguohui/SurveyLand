@@ -27,6 +27,7 @@ import com.example.surveyland.entity.PositionEvent
 import com.example.surveyland.ui.activity.MeasureActivity
 import com.example.surveyland.ui.activity.MeasureDistanceActivity
 import com.example.surveyland.ui.activity.SearchActivity
+import com.example.surveyland.ui.activity.VideoActivity
 import com.example.surveyland.ui.activity.WalkAroundActivity
 import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
@@ -133,9 +134,7 @@ class AMapMeasureFragment : BaseFragment() {
             isSearch = false
             startLocation()
         }
-        mAmpMeasureFragmentBinding.search.setOnClickListener {
-            startActivity(SearchActivity::class.java)
-        }
+
         mAmpMeasureFragmentBinding.tvMeasure.setOnClickListener {
             val cameraState = mapboxMap.cameraState
             val centerPoint = cameraState.center
@@ -147,7 +146,15 @@ class AMapMeasureFragment : BaseFragment() {
     }
 
     private fun initView() {
-
+        mAmpMeasureFragmentBinding.playVideo.setOnClickListener {
+            startActivity(VideoActivity::class.java,"videoUrl","https://www.w3schools.com/html/mov_bbb.mp4")
+        }
+        mAmpMeasureFragmentBinding.search.setOnClickListener {
+            startActivity(SearchActivity::class.java)
+        }
+        mAmpMeasureFragmentBinding.etSearch.setOnClickListener {
+            startActivity(SearchActivity::class.java)
+        }
     }
 
 
