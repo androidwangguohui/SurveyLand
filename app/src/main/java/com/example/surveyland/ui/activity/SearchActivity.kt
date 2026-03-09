@@ -71,7 +71,7 @@ class SearchActivity : BaseActivity(), PoiSearch.OnPoiSearchListener {
             result?.pois?.let { poiList.addAll(it) }
             adapter.notifyDataSetChanged()
         } else {
-            AppToast.show(this,"搜索失败，请稍后重试")
+            AppToast.show(this, "搜索失败，请稍后重试$rCode")
 //            Toast.makeText(this, "搜索失败, code: $rCode", Toast.LENGTH_SHORT).show()
         }
     }
