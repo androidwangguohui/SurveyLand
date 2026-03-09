@@ -348,29 +348,30 @@ class AMapMeasureFragment : BaseFragment() {
                     Log.d("定位成功", "纬度:$latitude 经度:$longitude")
 
                 } else {
-                    val helper = LocationHelper2(requireContext(), requireActivity())
+                    AppToast.show(requireActivity(),"高德！！！！高德！！！！")
+                    locationHelper = MapboxLocationHelper(requireActivity())
 
-                    helper.getSingleLocation(object : LocationHelper2.LocationListener {
-                        override fun onLocation(latitude: Double, longitude: Double, success: Boolean) {
-                            if (success) {
-                                displayMap(longitude, latitude)
-                            }else{
-                                locationHelper = MapboxLocationHelper(requireActivity())
-
-                                locationHelper.getCurrentLocation(
-                                    onSuccess = { point ->
-                                        displayMap(point.longitude(), point.latitude())
-                                        Log.d("LOCATION", "当前经纬度: ${point.latitude()}, ${point.longitude()}")
-                                    },
-                                    onError = { error ->
+                    locationHelper.getCurrentLocation(
+                        onSuccess = { point ->
+                            displayMap(point.longitude(), point.latitude())
+                            Log.d("LOCATION", "当前经纬度: ${point.latitude()}, ${point.longitude()}")
+                        },
+                        onError = { error ->
+                            AppToast.show(requireActivity(), "mapbox!!!!!!$error")
+                            val helper = LocationHelper2(requireContext(), requireActivity())
+                            helper.getSingleLocation(object : LocationHelper2.LocationListener {
+                                override fun onLocation(latitude: Double, longitude: Double, success: Boolean) {
+                                    if (success) {
+                                        displayMap(longitude, latitude)
+                                    }else{
                                         AppToast.show(requireActivity(),"定位失败，请稍后重试")
-
-                                        Log.w("LOCATION", "获取位置失败: $error")
                                     }
-                                )
-                            }
+                                }
+                            })
+                            Log.w("LOCATION", "获取位置失败: $error")
                         }
-                    })
+                    )
+
                 }
                 // 定位完成后停止
                 locationClient?.stopLocation()
