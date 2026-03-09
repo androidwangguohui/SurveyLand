@@ -1,4 +1,4 @@
-package com.example.surveyland.net
+package com.example.surveyland.entity
 data class TianDiTuResponse(
     val status: String,
     val result: ResultData?

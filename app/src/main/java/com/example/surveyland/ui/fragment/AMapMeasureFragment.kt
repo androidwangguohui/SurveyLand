@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.*
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.toColorInt
 import com.example.map_amap.util.LocationPermissionViewModel
@@ -32,6 +33,7 @@ import com.example.surveyland.ui.activity.WalkAroundActivity
 import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
 import com.example.surveyland.util.LocationHelper
+import com.example.surveyland.util.LocationHelper2
 import com.example.surveyland.util.MapClusterHelper
 import com.example.surveyland.util.StringUtils
 import com.google.gson.Gson
@@ -309,53 +311,61 @@ class AMapMeasureFragment : BaseFragment() {
         }
     }
 
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startLocation() {
+        val helper = LocationHelper2(requireContext(), requireActivity())
         if(!isSearch) {
-            locationClient = AMapLocationClient(requireContext())
+            //如果Google获取失败则用高德定位获取
 
-            val option = AMapLocationClientOption()
-
-            // 高精度模式（GPS + 网络）
-            option.locationMode =
-                AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
-
-            option.isOnceLocation = true         // 只定位一次
-            option.isNeedAddress = false        // 不需要地址更快
-            option.httpTimeOut = 15000
-            option.interval = 2000
-            option.isLocationCacheEnable = false
-
-            locationClient?.setLocationOption(option)
-
-            locationClient?.setLocationListener { location ->
-                if (location != null) {
-                    if (location.errorCode == 0) {
-                        val latitude = location.latitude
-                        val longitude = location.longitude
+            helper.getSingleLocation(object : LocationHelper2.LocationListener {
+                override fun onLocation(latitude: Double, longitude: Double, success: Boolean) {
+                    if (success) {
                         displayMap(longitude, latitude)
-                        Log.d("定位成功", "纬度:$latitude 经度:$longitude")
-
-                    } else {
-                        //如果高德获取失败则用Google定位获取
-                        LocationHelper.getInstance(requireActivity())
-                            .getCurrentLocation(requireActivity()) { lat, lon,status ->
-                                if(status){
-                                    displayMap(lon, lat)
-                                }else{
-                                    AppToast.show(requireActivity(),"定位失败，请稍后重试")
-                                    Log.e(
-                                        "定位失败",
-                                        "errorCode:${location.errorCode}, errorInfo:${location.errorInfo}"
-                                    )
-                                }
-                            }
+                    }else{
+                        AMapLocation()
                     }
-                    // 定位完成后停止
-                    locationClient?.stopLocation()
                 }
-            }
-            locationClient?.startLocation()
+            })
         }
+    }
+
+    private fun AMapLocation() {
+        locationClient = AMapLocationClient(requireContext())
+
+        val option = AMapLocationClientOption()
+
+        // 高精度模式（GPS + 网络）
+        option.locationMode =
+            AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
+
+        option.isOnceLocation = true         // 只定位一次
+        option.isNeedAddress = false        // 不需要地址更快
+        option.httpTimeOut = 15000
+        option.interval = 2000
+        option.isLocationCacheEnable = false
+
+        locationClient?.setLocationOption(option)
+
+        locationClient?.setLocationListener { location ->
+            if (location != null) {
+                if (location.errorCode == 0) {
+                    val latitude = location.latitude
+                    val longitude = location.longitude
+                    displayMap(longitude, latitude)
+                    Log.d("定位成功", "纬度:$latitude 经度:$longitude")
+
+                } else {
+                    AppToast.show(requireActivity(),"定位失败，请稍后重试")
+                    Log.e(
+                        "定位失败",
+                        "errorCode:${location.errorCode}, errorInfo:${location.errorInfo}"
+                    )
+                }
+                // 定位完成后停止
+                locationClient?.stopLocation()
+            }
+        }
+        locationClient?.startLocation()
     }
 
 

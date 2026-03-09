@@ -3,6 +3,8 @@ package com.example.surveyland.net
 import android.content.Context
 import android.util.Log
 import com.example.surveyland.R
+import com.example.surveyland.net.api.GeocodeResponse
+import com.example.surveyland.net.manager.RetrofitManager
 
 import retrofit2.Call
 import retrofit2.Callback

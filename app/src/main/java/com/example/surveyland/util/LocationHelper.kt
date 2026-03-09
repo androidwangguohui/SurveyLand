@@ -8,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
+import com.example.surveyland.ui.view.AppToast
 import com.google.android.gms.location.*
 
 /**
@@ -59,6 +60,7 @@ class LocationHelper private constructor(private val context: Context) {
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
                 1001
             )
+            AppToast.show(activity,"请重新定位")
             Log.w("LocationHelper", "Location permission not granted")
             return
         }

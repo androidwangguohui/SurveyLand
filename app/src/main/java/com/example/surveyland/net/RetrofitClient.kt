@@ -1,5 +1,6 @@
 package com.example.surveyland.net
 
+import com.example.surveyland.net.api.MapboxGeocodingApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit

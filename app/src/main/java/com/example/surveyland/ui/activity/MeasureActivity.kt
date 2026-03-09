@@ -29,7 +29,7 @@ import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
 import com.example.surveyland.util.MapUtils
 import com.example.surveyland.util.StringUtils
-import com.example.surveyland.util.TianDiTuRepository
+import com.example.surveyland.net.repository.TianDiTuRepository
 import com.google.gson.Gson
 import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken

@@ -1,11 +1,11 @@
-package com.example.surveyland.util
+package com.example.surveyland.net.repository
 
 import android.content.Context
-import com.example.surveyland.net.TianDiTuResponse
+import com.example.surveyland.entity.TianDiTuResponse
 import com.example.surveyland.net.TianDiTuRetrofit
 import retrofit2.Call
 import retrofit2.Callback
-
+import retrofit2.Response
 
 class TianDiTuRepository(private val context: Context) {
 
@@ -28,7 +28,7 @@ class TianDiTuRepository(private val context: Context) {
 
             override fun onResponse(
                 call: Call<TianDiTuResponse?>,
-                response: retrofit2.Response<TianDiTuResponse?>
+                response: Response<TianDiTuResponse?>
             ) {
                 if (!response.isSuccessful) {
                     callback(null)

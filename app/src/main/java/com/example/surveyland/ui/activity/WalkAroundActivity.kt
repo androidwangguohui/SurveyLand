@@ -29,7 +29,7 @@ import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
 import com.example.surveyland.util.MapboxLandTracker
 import com.example.surveyland.util.StringUtils
-import com.example.surveyland.util.TianDiTuRepository
+import com.example.surveyland.net.repository.TianDiTuRepository
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.FeatureCollection
 import com.mapbox.geojson.LineString

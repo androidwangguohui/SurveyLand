@@ -1,5 +1,6 @@
-package com.example.surveyland.net
+package com.example.surveyland.net.manager
 
+import com.example.surveyland.net.api.MapboxApi
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -14,4 +15,5 @@ object RetrofitManager {
             .build()
             .create(MapboxApi::class.java)
     }
+
 }

@@ -1,4 +1,4 @@
-package com.example.surveyland.net
+package com.example.surveyland.net.api
 
 import retrofit2.Call
 import retrofit2.http.GET
