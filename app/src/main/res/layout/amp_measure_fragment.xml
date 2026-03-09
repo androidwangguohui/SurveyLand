@@ -48,6 +48,7 @@
                     android:layout_width="match_parent"
                     android:maxLength="12"
                     android:textSize="18sp"
+                    android:textColor="@color/view"
                     android:layout_height="wrap_content"
                     android:text="搜索位置"/>
             </LinearLayout>
