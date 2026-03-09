@@ -3,6 +3,7 @@ package com.example.surveyland.util
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
 import android.util.Log
@@ -96,7 +97,20 @@ class LocationHelper2(
                 }
             }
             .addOnFailureListener {
-                listener.onLocation(0.0, 0.0, false)
+                val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val providers = locationManager.getProviders(true)
+                var bestLocation: Location? = null
+                for (provider in providers) {
+                    val l = locationManager.getLastKnownLocation(provider)
+                    if (l != null && (bestLocation == null || l.accuracy < bestLocation.accuracy)) {
+                        bestLocation = l
+                    }
+                }
+                if (bestLocation != null) {
+                    listener.onLocation(bestLocation.latitude, bestLocation.longitude, true)
+                } else {
+                    listener.onLocation(0.0, 0.0, false)
+                }
             }
     }
 
