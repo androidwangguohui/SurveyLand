@@ -31,7 +31,9 @@ import com.example.surveyland.ui.activity.VideoActivity
 import com.example.surveyland.ui.activity.WalkAroundActivity
 import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
+import com.example.surveyland.util.LocationHelper
 import com.example.surveyland.util.MapClusterHelper
+import com.example.surveyland.util.StringUtils
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.mapbox.geojson.Feature
@@ -147,7 +149,8 @@ class AMapMeasureFragment : BaseFragment() {
 
     private fun initView() {
         mAmpMeasureFragmentBinding.playVideo.setOnClickListener {
-            startActivity(VideoActivity::class.java,"videoUrl","https://www.w3schools.com/html/mov_bbb.mp4")
+//            startActivity(VideoActivity::class.java,"videoUrl","https://www.w3schools.com/html/mov_bbb.mp4")
+            startActivity(VideoActivity::class.java,"videoUrl","http://wu.zmgchub.com/ceshi.mp4")
         }
         mAmpMeasureFragmentBinding.search.setOnClickListener {
             startActivity(SearchActivity::class.java)
@@ -205,7 +208,7 @@ class AMapMeasureFragment : BaseFragment() {
     }
     private fun initMap(type: Int) {
 
-        mapboxMap.loadStyleJson(getTdtStyleJson()) { style ->
+        mapboxMap.loadStyleJson(StringUtils.getTdtStyleJson()) { style ->
             //缩放监听，处理地块显示逻辑
             mapboxMap.addOnCameraChangeListener {
                 if(mLandList.isNotEmpty() && !isHide)
@@ -327,18 +330,25 @@ class AMapMeasureFragment : BaseFragment() {
             locationClient?.setLocationListener { location ->
                 if (location != null) {
                     if (location.errorCode == 0) {
-
                         val latitude = location.latitude
                         val longitude = location.longitude
                         displayMap(longitude, latitude)
                         Log.d("定位成功", "纬度:$latitude 经度:$longitude")
 
                     } else {
-                        AppToast.show(requireActivity(),"定位失败，请稍后重试")
-                        Log.e(
-                            "定位失败",
-                            "errorCode:${location.errorCode}, errorInfo:${location.errorInfo}"
-                        )
+                        //如果高德获取失败则用Google定位获取
+                        LocationHelper.getInstance(requireActivity())
+                            .getCurrentLocation(requireActivity()) { lat, lon,status ->
+                                if(status){
+                                    displayMap(lon, lat)
+                                }else{
+                                    AppToast.show(requireActivity(),"定位失败，请稍后重试")
+                                    Log.e(
+                                        "定位失败",
+                                        "errorCode:${location.errorCode}, errorInfo:${location.errorInfo}"
+                                    )
+                                }
+                            }
                     }
                     // 定位完成后停止
                     locationClient?.stopLocation()
@@ -348,16 +358,6 @@ class AMapMeasureFragment : BaseFragment() {
         }
     }
 
-    private fun loadLocation() {
-        if(!isSearch){
-            //通过高德获取当前位置
-            val locationHelper = com.example.surveyland.util.SimpleLocationHelper(requireActivity())
-            locationHelper.getLocation { lat, lon ->
-                Log.d("Location", "经度 = $lon, 纬度 = $lat")
-                displayMap(lon, lat)
-            }
-        }
-    }
 
     private fun displayMap(lon: Double, lat: Double) {
         val bounds = CameraBoundsOptions.Builder()
@@ -667,52 +667,7 @@ class AMapMeasureFragment : BaseFragment() {
     private fun editLand(land: LandEntity) {
         startPlotLand(false,2,land.id)
     }
-    private fun getTdtStyleJson() : String{
 
-        val key = "18200bf5ba2f674c772624185d27c1c9"
-
-        return """
-    {
-      "version": 8,
-      "sources": {
-        "tdt-img": {
-          "type": "raster",
-          "tiles": [
-            "https://t0.tianditu.gov.cn/img_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=img&style=default&tilematrixset=w&format=tiles&tilematrix={z}&tilerow={y}&tilecol={x}&tk=$key"
-          ],
-          "tileSize": 256
-        },
-        "tdt-cia": {
-          "type": "raster",
-          "tiles": [
-            "https://t0.tianditu.gov.cn/cia_w/wmts?service=wmts&request=GetTile&version=1.0.0&layer=cia&style=default&tilematrixset=w&format=tiles&tilematrix={z}&tilerow={y}&tilecol={x}&tk=$key"
-          ],
-          "tileSize": 256
-        }
-      },
-      "layers": [
-        {
-          "id": "background",
-          "type": "background",
-          "paint": {
-            "background-color": "#000000"
-          }
-        },
-        {
-          "id": "tdt-img",
-          "type": "raster",
-          "source": "tdt-img"
-        },
-        {
-          "id": "tdt-cia",
-          "type": "raster",
-          "source": "tdt-cia"
-        }
-      ]
-    }
-    """.trimIndent()
-
-    }
     companion object {
         private const val ARG_PARAM1 = "param1"
 
