@@ -80,18 +80,7 @@ class SearchActivity : BaseActivity(), PoiSearch.OnPoiSearchListener {
 
             finish()
         })
-        viewModel.poiList.observe(this){
-            if(null != it && it.isNotEmpty()){
-                dataList.clear()
-                poiList.clear()
-                dataList.addAll(it)
-                adapter.notifyDataSetChanged()
-
-            }else{
-                    searchPoi(keyword)
-
-            }
-        }
+        searchPoi(keyword)
     }
 
     private fun searchPoi(keyword: String) {
@@ -110,7 +99,17 @@ class SearchActivity : BaseActivity(), PoiSearch.OnPoiSearchListener {
             result?.pois?.let { poiList.addAll(it) }
             adapter.notifyDataSetChanged()
         } else {
-            AppToast.show(this, "搜索失败，请稍后重试")
+            viewModel.poiList.observe(this){
+                if(null != it && it.isNotEmpty()){
+                    dataList.clear()
+                    poiList.clear()
+                    dataList.addAll(it)
+                    adapter.notifyDataSetChanged()
+
+                }else{
+                    AppToast.show(this, "搜索失败，请稍后重试")
+                }
+            }
         }
     }
 

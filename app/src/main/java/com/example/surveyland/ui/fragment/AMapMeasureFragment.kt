@@ -32,6 +32,7 @@ import com.example.surveyland.ui.activity.VideoActivity
 import com.example.surveyland.ui.activity.WalkAroundActivity
 import com.example.surveyland.ui.view.AppToast
 import com.example.surveyland.ui.view.CustomPromptDialog
+import com.example.surveyland.util.AMapLocationProHelper
 import com.example.surveyland.util.LocationHelper
 import com.example.surveyland.util.LocationHelper2
 import com.example.surveyland.util.MapClusterHelper
@@ -312,7 +313,6 @@ class AMapMeasureFragment : BaseFragment() {
         }
     }
 
-    private lateinit var locationHelper: MapboxLocationHelper
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startLocation() {
         if(!isSearch) {
@@ -321,63 +321,46 @@ class AMapMeasureFragment : BaseFragment() {
     }
 
     private fun AMapLocation() {
-        locationClient = AMapLocationClient(requireContext())
+        showLoading("加载中...")
+        val locationHelper = AMapLocationProHelper(requireContext())
 
-        val option = AMapLocationClientOption()
-
-        // 高精度模式（GPS + 网络）
-        option.locationMode =
-            AMapLocationClientOption.AMapLocationMode.Hight_Accuracy
-
-        option.isOnceLocation = true         // 只定位一次
-        option.isNeedAddress = false        // 不需要地址更快
-        option.isWifiActiveScan = true // 强制开启 wifi 扫描，提高精度
-        option.isMockEnable = false
-        option.httpTimeOut = 15000
-        option.interval = 2000
-        option.isLocationCacheEnable = false
-
-        locationClient?.setLocationOption(option)
-
-        locationClient?.setLocationListener { location ->
+        locationHelper.startLocation(maxWaitTime = 5000L) { location ->
             if (location != null) {
-                if (location.errorCode == 0) {
-                    val latitude = location.latitude
-                    val longitude = location.longitude
-                    displayMap(longitude, latitude)
-                    Log.d("定位成功", "纬度:$latitude 经度:$longitude")
-
-                } else {
-                    AppToast.show(requireActivity(),"高德！！！！高德！！！！")
-                    locationHelper = MapboxLocationHelper(requireActivity())
-
-                    locationHelper.getCurrentLocation(
-                        onSuccess = { point ->
-                            displayMap(point.longitude(), point.latitude())
-                            Log.d("LOCATION", "当前经纬度: ${point.latitude()}, ${point.longitude()}")
-                        },
-                        onError = { error ->
-                            AppToast.show(requireActivity(), "mapbox!!!!!!$error")
-                            val helper = LocationHelper2(requireContext(), requireActivity())
-                            helper.getSingleLocation(object : LocationHelper2.LocationListener {
-                                override fun onLocation(latitude: Double, longitude: Double, success: Boolean) {
-                                    if (success) {
-                                        displayMap(longitude, latitude)
-                                    }else{
-                                        AppToast.show(requireActivity(),"定位失败，请稍后重试")
-                                    }
-                                }
-                            })
-                            Log.w("LOCATION", "获取位置失败: $error")
-                        }
-                    )
-
-                }
-                // 定位完成后停止
-                locationClient?.stopLocation()
+                displayMap(location.longitude, location.latitude)
+                Log.d("定位结果", "lat=${location.latitude} lng=${location.longitude} 精度=${location.accuracy} 地址=${location.address}")
+            } else {
+                AppToast.show(requireContext(),"高德获取位置信息失败！")
+                mapBoxLoaction()
             }
+            dismissLoading()
         }
-        locationClient?.startLocation()
+    }
+
+    private fun mapBoxLoaction() {
+        val locationHelper = MapboxLocationHelper(requireActivity())
+        locationHelper.getCurrentLocation(
+            onSuccess = { point ->
+                displayMap(point.longitude(), point.latitude())
+                Log.d("LOCATION", "当前经纬度: ${point.latitude()}, ${point.longitude()}")
+            },
+            onError = { error ->
+                androidLocation()
+                Log.w("LOCATION", "获取位置失败: $error")
+            }
+        )
+    }
+
+    private fun androidLocation() {
+        val helper = LocationHelper2(requireContext(), requireActivity())
+        helper.getSingleLocation(object : LocationHelper2.LocationListener {
+            override fun onLocation(latitude: Double, longitude: Double, success: Boolean) {
+                if (success) {
+                    displayMap(longitude, latitude)
+                } else {
+                    AppToast.show(requireActivity(), "定位失败，请稍后重试")
+                }
+            }
+        })
     }
 
 
